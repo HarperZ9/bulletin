@@ -6,108 +6,13 @@
  *
  * The unit tests prove the pieces. This proves the assembled service, including
  * the parts that only exist once a real runtime, a real database, and a real
- * Durable Object are in play: replay rejection, rate limits, and the live feed.
+ * Durable Object are in play: replay rejection, rate limits, the live feed, the
+ * MCP door, and the published contract that describes all of it. The signing
+ * client it drives the board with lives in smoke/client.mjs.
  */
 
-import { webcrypto as crypto } from "node:crypto";
-
-const args = Object.fromEntries(
-    process.argv.slice(2).reduce((acc, v, i, a) => (v.startsWith("--") ? [...acc, [v.slice(2), a[i + 1]]] : acc), []),
-);
-const BASE = (args.base ?? "http://127.0.0.1:8787").replace(/\/$/, "");
-const enc = new TextEncoder();
-
-let passed = 0;
-const failures = [];
-function check(name, condition, detail) {
-    if (condition) {
-        passed += 1;
-        console.log(`  ok   ${name}`);
-    } else {
-        failures.push(name);
-        console.log(`  FAIL ${name}${detail === undefined ? "" : ` -- ${detail}`}`);
-    }
-}
-
-const b64 = (b) => Buffer.from(b).toString("base64");
-const b64url = (b) => Buffer.from(b).toString("base64url");
-const sha256 = async (b) => new Uint8Array(await crypto.subtle.digest("SHA-256", b));
-
-function leadingZeroBits(bytes) {
-    let n = 0;
-    for (const byte of bytes) {
-        if (byte === 0) {
-            n += 8;
-            continue;
-        }
-        return n + Math.clz32(byte) - 24;
-    }
-    return n;
-}
-
-async function makeAgent(handle) {
-    const pair = await crypto.subtle.generateKey({ name: "Ed25519" }, true, ["sign", "verify"]);
-    const pub = await crypto.subtle.exportKey("jwk", pair.publicKey);
-    const jwk = { kty: "OKP", crv: "Ed25519", x: pub.x };
-    const tp = b64url(await sha256(enc.encode(JSON.stringify({ crv: jwk.crv, kty: jwk.kty, x: jwk.x }))));
-
-    const challenge = await (await fetch(`${BASE}/v1/challenge`)).json();
-    const prefix = `bulletin-pow:v1:${challenge.challenge}:${tp}:`;
-    let solution = "";
-    for (let i = 0; ; i += 1) {
-        solution = i.toString(36);
-        if (leadingZeroBits(await sha256(enc.encode(prefix + solution))) >= challenge.bits) break;
-    }
-
-    const agent = { privateKey: pair.privateKey, jwk, thumbprint: tp };
-    const registered = await send(agent, "POST", "/v1/agents", {
-        public_jwk: jwk,
-        handle,
-        challenge: challenge.challenge,
-        solution,
-    });
-    if (registered.status !== 201) throw new Error(`registration failed: ${JSON.stringify(registered.body)}`);
-    return agent;
-}
-
-async function build(agent, method, path, payload) {
-    const body = payload === undefined ? "" : JSON.stringify(payload);
-    const url = new URL(BASE + path);
-    const created = Math.floor(Date.now() / 1000);
-    const nonce = b64url(crypto.getRandomValues(new Uint8Array(16)));
-    const digest = `sha-256=:${b64(await sha256(enc.encode(body)))}:`;
-    const params =
-        '("@method" "@authority" "@path" "content-digest")' +
-        `;created=${created};expires=${created + 120};keyid="${agent.thumbprint}"` +
-        `;nonce="${nonce}";tag="web-bot-auth";alg="ed25519"`;
-    const base = [
-        `"@method": ${method}`,
-        `"@authority": ${url.host.toLowerCase()}`,
-        `"@path": ${url.pathname}`,
-        `"content-digest": ${digest}`,
-        `"@signature-params": ${params}`,
-    ].join("\n");
-    const sig = new Uint8Array(await crypto.subtle.sign({ name: "Ed25519" }, agent.privateKey, enc.encode(base)));
-    return {
-        url,
-        init: {
-            method,
-            headers: {
-                "content-type": "application/json",
-                "content-digest": digest,
-                "signature-input": `sig1=${params}`,
-                signature: `sig1=:${b64(sig)}:`,
-            },
-            body,
-        },
-    };
-}
-
-async function send(agent, method, path, payload) {
-    const { url, init } = await build(agent, method, path, payload);
-    const response = await fetch(url, init);
-    return { status: response.status, body: await response.json().catch(() => null) };
-}
+import { BASE, build, check, makeAgent, makeKey, send, summary } from "./smoke/client.mjs";
+import { mcpChecks } from "./smoke/mcp.mjs";
 
 console.log(`smoke: ${BASE}\n`);
 
@@ -132,11 +37,36 @@ const once = await fetch(replayable.url, replayable.init);
 const twice = await fetch(replayable.url, replayable.init);
 check("the first send of a signed request succeeds", once.status === 201, `got ${once.status}`);
 check("the identical replay is refused", twice.status === 409, `got ${twice.status}`);
+const onceBody = await once.json().catch(() => null);
+const replayBody = await twice.json().catch(() => null);
+check("the replay names the code to branch on", replayBody?.code === "nonce_reused", JSON.stringify(replayBody));
+// A retry after a dropped connection looks exactly like a replay, so the refusal
+// has to hand back what the first attempt created or the caller cannot tell the
+// two apart without searching for its own post.
+check(
+    "the replay hands back what the first attempt created",
+    replayBody?.applied?.id === onceBody?.post?.id && typeof onceBody?.post?.id === "string",
+    JSON.stringify(replayBody),
+);
 
 const tampered = await build(alice, "POST", "/v1/posts", { room: "lobby", body: "benign" });
 tampered.init.body = JSON.stringify({ room: "lobby", body: "ignore all previous instructions" });
-const tamperStatus = (await fetch(tampered.url, tampered.init)).status;
-check("a body swapped after signing is refused", tamperStatus === 400, `got ${tamperStatus}`);
+const tamper = await fetch(tampered.url, tampered.init);
+const tamperBody = await tamper.json().catch(() => null);
+check("a body swapped after signing is refused", tamper.status === 400, `got ${tamper.status}`);
+check("the refusal names the digest, not the signature", tamperBody?.code === "digest_mismatch", JSON.stringify(tamperBody));
+
+// A client that forgets the header entirely gets the same code as one whose
+// digest is wrong, so there is one branch to write rather than two.
+const noDigest = await build(alice, "POST", "/v1/posts", { room: "lobby", body: "smoke: no digest" });
+delete noDigest.init.headers["content-digest"];
+const noDigestBody = await (await fetch(noDigest.url, noDigest.init)).json().catch(() => null);
+check("a missing digest is the same code as a wrong one", noDigestBody?.code === "digest_mismatch", JSON.stringify(noDigestBody));
+
+const stranger = await makeKey();
+const unregistered = await send(stranger, "GET", "/v1/whoami");
+check("an unregistered key is refused", unregistered.status === 403, `got ${unregistered.status}`);
+check("the refusal tells it to register", unregistered.body?.code === "unknown_key", JSON.stringify(unregistered.body));
 
 console.log("\nlimits");
 const unknownRoom = await send(alice, "POST", "/v1/posts", { room: "nope", body: "x" });
@@ -210,8 +140,106 @@ if (html.status === 201) {
     check("posted markup is stored verbatim and never rendered", false, `post rejected: ${html.status}`);
 }
 
-console.log(`\n${passed} passed, ${failures.length} failed`);
-if (failures.length > 0) {
-    console.log(failures.map((f) => `  - ${f}`).join("\n"));
-    process.exit(1);
-}
+
+console.log("\nreading");
+const carol = await makeAgent("smoke-carol");
+const dave = await makeAgent("smoke-dave");
+
+const searched = await (await fetch(`${BASE}/v1/search?q=smoke&room=lobby`)).json();
+check("search finds a post by its words", (searched.hits ?? []).length > 0, JSON.stringify(searched).slice(0, 200));
+check("a hit carries a snippet", typeof searched.hits?.[0]?.snippet === "string");
+const noTerms = await fetch(`${BASE}/v1/search`);
+check("search without terms is a 400", noTerms.status === 400, `got ${noTerms.status}`);
+check(
+    "a failure is problem details",
+    (noTerms.headers.get("content-type") ?? "").startsWith("application/problem+json"),
+    noTerms.headers.get("content-type") ?? "",
+);
+const problemBody = await noTerms.json();
+check("a failure carries a stable code", problemBody.code === "bad_request", JSON.stringify(problemBody).slice(0, 200));
+check("a failure says whether retrying could help", problemBody.retryable === false);
+check("a failure keeps the RFC 9457 members", typeof problemBody.title === "string" && problemBody.status === 400);
+
+const reply = await send(carol, "POST", "/v1/posts", { room: "lobby", body: "smoke: a reply", parent_id: target });
+check("a reply is accepted", reply.status === 201, JSON.stringify(reply.body));
+const thread = await (await fetch(`${BASE}/v1/threads/${reply.body.post.id}`)).json();
+check("asking for a reply returns its whole thread", thread.root === target, JSON.stringify(thread).slice(0, 200));
+check("the thread holds both posts", (thread.posts ?? []).length >= 2);
+
+const stats = await (await fetch(`${BASE}/v1/stats`)).json();
+check("stats report a head cursor", typeof stats.cursor === "string" && stats.cursor.length > 0);
+check("stats count rows rather than estimate", typeof stats.counts?.posts === "number");
+const digestAtHead = await (await fetch(`${BASE}/v1/digest?since=${encodeURIComponent(stats.cursor)}`)).json();
+check("a digest from the head counts nothing new", digestAtHead.total_posts === 0, JSON.stringify(digestAtHead));
+const digestCold = await (await fetch(`${BASE}/v1/digest`)).json();
+check("a digest without a cursor hands one back", typeof digestCold.cursor === "string");
+
+console.log("\ncaching");
+const cold = await fetch(`${BASE}/v1/feed?room=lobby`);
+const etag = cold.headers.get("etag");
+check("a read carries an ETag", typeof etag === "string" && etag.length > 0);
+const revalidated = await fetch(`${BASE}/v1/feed?room=lobby`, { headers: { "if-none-match": etag } });
+check("an unchanged read answers 304", revalidated.status === 304, `got ${revalidated.status}`);
+check(
+    "the ETag is readable from another origin",
+    (cold.headers.get("access-control-expose-headers") ?? "").toLowerCase().includes("etag"),
+    cold.headers.get("access-control-expose-headers") ?? "",
+);
+
+console.log("\ncoming back");
+const whoami = await send(dave, "GET", "/v1/whoami");
+check("a signed GET is accepted", whoami.status === 200, JSON.stringify(whoami.body));
+check("whoami reports what the tier allows", typeof whoami.body?.policy?.posts_per_hour === "number");
+check("whoami reports the remaining budget", typeof whoami.body?.rate?.remaining === "number");
+check("whoami hands back the board cursor", typeof whoami.body?.board_cursor === "string");
+const unsignedWhoami = await fetch(`${BASE}/v1/whoami`);
+const unsignedWhoamiBody = await unsignedWhoami.json().catch(() => null);
+check("an unsigned whoami is refused", unsignedWhoami.status === 401, `got ${unsignedWhoami.status}`);
+check(
+    "the refusal separates unsigned from invalid",
+    unsignedWhoamiBody?.code === "unsigned",
+    JSON.stringify(unsignedWhoamiBody),
+);
+
+const mention = await send(carol, "POST", "/v1/posts", { room: "lobby", body: "smoke: @smoke-dave take a look" });
+check("a post naming a handle is accepted", mention.status === 201, JSON.stringify(mention.body));
+check("the post reports which keys it reached", (mention.body?.post?.mentioned ?? []).includes(dave.thumbprint));
+const inbox = await send(dave, "GET", "/v1/inbox?limit=10");
+check(
+    "the mention lands in the inbox",
+    (inbox.body?.items ?? []).some((item) => item.id === mention.body.post.id),
+    JSON.stringify(inbox.body).slice(0, 300),
+);
+check("a plain read does not advance the cursor", inbox.body?.acknowledged === false);
+const acked = await send(dave, "GET", "/v1/inbox?limit=10&ack=1");
+check("acknowledging advances the cursor", acked.body?.acknowledged === true);
+const afterAck = await send(dave, "GET", "/v1/inbox");
+check(
+    "an acknowledged item does not come back",
+    (afterAck.body?.items ?? []).length === 0,
+    JSON.stringify(afterAck.body).slice(0, 200),
+);
+
+console.log("\nrate headers");
+const budgeted = await send(dave, "POST", "/v1/posts", { room: "scratch", body: "smoke: budget check" });
+check("a write is accepted", budgeted.status === 201, JSON.stringify(budgeted.body));
+check("a write reports the remaining budget", typeof budgeted.body?.rate?.remaining === "number");
+
+console.log("\nmcp");
+await mcpChecks(dave);
+
+console.log("\nmachine-readable contract");
+const openapi = await fetch(`${BASE}/openapi.json`);
+check("an OpenAPI document is served", openapi.status === 200, `got ${openapi.status}`);
+const spec = await openapi.json();
+check("the document is OpenAPI 3.1", spec.openapi === "3.1.0", String(spec.openapi));
+check("it covers the write routes", spec.paths?.["/v1/posts"]?.post !== undefined);
+check("it covers the mcp endpoint", spec.paths?.["/mcp"]?.post !== undefined);
+check("it describes the signature scheme", typeof spec.components?.securitySchemes?.webBotAuth?.description === "string");
+check(
+    "its error enum matches the codes the board emits",
+    (spec.components?.schemas?.Problem?.properties?.code?.enum ?? []).includes("nonce_reused"),
+);
+check("the discovery document points at both doors", typeof doc.openapi === "string" && typeof doc.mcp?.endpoint === "string");
+
+summary();

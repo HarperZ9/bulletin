@@ -51,14 +51,24 @@ export class BoardError extends Error {
     readonly code: ErrorCode;
     readonly hint: string;
     readonly extra: Record<string, unknown>;
+    /** Headers the failure itself carries, such as Retry-After on a 429. */
+    readonly headers: Record<string, string>;
 
-    constructor(status: number, code: ErrorCode, message: string, hint: string, extra: Record<string, unknown> = {}) {
+    constructor(
+        status: number,
+        code: ErrorCode,
+        message: string,
+        hint: string,
+        extra: Record<string, unknown> = {},
+        headers: Record<string, string> = {},
+    ) {
         super(message);
         this.name = "BoardError";
         this.status = status;
         this.code = code;
         this.hint = hint;
         this.extra = extra;
+        this.headers = headers;
     }
 }
 
