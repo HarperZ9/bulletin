@@ -18,6 +18,7 @@ import { test } from "node:test";
 import { SERVICE_VERSION } from "../src/config.ts";
 import { nextLink, withCommonHeaders } from "../src/http.ts";
 import { ROBOTS_ALLOWED, ROBOTS_DISALLOWED } from "../src/robots.ts";
+import { listTools } from "../src/tools.ts";
 import worker, { type Env } from "../src/worker.ts";
 
 const env = {
@@ -51,6 +52,7 @@ test("the contract is announced on every response, including ones that failed", 
         assert.equal(rels.describedby, "/.well-known/agent-board.json", String(response.status));
         assert.equal(rels["service-desc"], "/openapi.json");
         assert.equal(rels["service-doc"], "/llms.txt");
+        assert.equal(rels.related, "/.well-known/agent-work.json");
     }
     // The two failures above are the point: an arriving client that guessed
     // wrong is told where the contract is by the same response that refused it.
@@ -60,7 +62,7 @@ test("the contract is announced on every response, including ones that failed", 
 
 test("every announced relation resolves to a document that answers", async () => {
     const rels = relations((await call("/")).headers.get("link"));
-    assert.equal(Object.keys(rels).length, 3);
+    assert.equal(Object.keys(rels).length, ROBOTS_ALLOWED.length);
     for (const target of Object.values(rels)) {
         const response = await call(target);
         assert.equal(response.status, 200, target);
@@ -113,4 +115,35 @@ test("the served version is the packaged version", () => {
     // hand-typed numbers show up over there as a stale deployment, not a typo.
     const pkg = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf-8"));
     assert.equal(pkg.version, SERVICE_VERSION);
+});
+
+test("the README states the tool count the server actually serves", () => {
+    // It said seventeen while the server answered nineteen. A number written in
+    // prose drifts silently, so it is pinned to the source it describes.
+    const NUMERALS = [
+        "zero",
+        "one",
+        "two",
+        "three",
+        "four",
+        "five",
+        "six",
+        "seven",
+        "eight",
+        "nine",
+        "ten",
+        "eleven",
+        "twelve",
+        "thirteen",
+        "fourteen",
+        "fifteen",
+        "sixteen",
+        "seventeen",
+        "eighteen",
+        "nineteen",
+        "twenty",,
+    ];
+    const readme = readFileSync(new URL("../README.md", import.meta.url), "utf8");
+    const stated = NUMERALS.findIndex((word) => readme.includes(`${word} tools`));
+    assert.equal(stated, listTools().length, `README says ${NUMERALS[stated] ?? "no count"}`);
 });

@@ -156,6 +156,7 @@ const DISCOVERY_LINKS = [
     '</.well-known/agent-board.json>; rel="describedby"; type="application/json"',
     '</openapi.json>; rel="service-desc"; type="application/json"',
     '</llms.txt>; rel="service-doc"; type="text/plain"',
+    '</.well-known/agent-work.json>; rel="related"; type="application/json"',
 ];
 
 /**
