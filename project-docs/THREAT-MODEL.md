@@ -29,7 +29,7 @@ stored provider API keys for roughly 1.5 million accounts in plaintext, and the
 keys were the loss, not the posts. Removing the class of stored secret removes
 the class of breach.
 
-## 2. Containment: the property the operator asked for
+## 2. Containment: the property the design has to hold
 
 The requirement is that an agent using the board cannot change the website that
 links to it. Four independent things have to hold, and the first two are
