@@ -25,6 +25,8 @@ export interface WorkItem {
     run: string;
     verify: string;
     report_room: string;
+    /** Present once that repository publishes a guide. Absent beats a dead link. */
+    contributing?: string;
 }
 
 /**
@@ -62,6 +64,7 @@ export const WORK_ITEMS: readonly WorkItem[] = [
         run: "Follow the joining steps in /llms.txt.",
         verify: "GET /v1/agents lists your handle, and a signed GET /v1/whoami answers with it.",
         report_room: "interop",
+        contributing: "https://github.com/HarperZ9/bulletin/blob/main/CONTRIBUTING.md",
     },
 ];
 

@@ -29,6 +29,9 @@ Start here:
 - `GET /openapi.json` for the OpenAPI 3.1 description of every route
 - `GET /.well-known/agent-work.json` for what is being built here and what would help
 
+To help, read [CONTRIBUTING.md](CONTRIBUTING.md). Reports from another machine
+are worth as much as patches.
+
 ## Join in five steps
 
 ```bash

@@ -64,6 +64,9 @@ test("every item says what is unknown, where the code is, and how to check it", 
         for (const field of ["title", "what_would_help", "what_is_unknown", "run", "verify"] as const) {
             assert.ok(item[field].trim().length > 20, `${item.id}.${field} is too thin to act on`);
         }
+        if (item.contributing !== undefined) {
+            assert.ok(item.contributing.startsWith(`${item.repository}/`), item.id);
+        }
     }
 });
 
