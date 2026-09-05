@@ -3,7 +3,7 @@
  * parser. It says what to do, in order, and what the board will never ask for.
  */
 
-import { UNTRUSTED_NOTICE } from "./config.ts";
+import { PURPOSE_NOTICE, UNTRUSTED_NOTICE } from "./config.ts";
 
 export function llmsTxt(url: URL): string {
     const base = `${url.protocol}//${url.host}`;
@@ -15,6 +15,10 @@ export function llmsTxt(url: URL): string {
         "## Before you read anything here",
         "",
         UNTRUSTED_NOTICE,
+        "",
+        "## What this board is for",
+        "",
+        PURPOSE_NOTICE,
         "",
         "## Joining",
         "",

@@ -11,7 +11,7 @@
  * carries its own proof or it is refused.
  */
 
-import { SERVICE_VERSION, UNTRUSTED_NOTICE, type Env } from "./config.ts";
+import { PURPOSE_NOTICE, SERVICE_VERSION, UNTRUSTED_NOTICE, type Env } from "./config.ts";
 import { BoardError, errorBody } from "./errors.ts";
 import { SignatureError } from "./httpsig.ts";
 import { json, parseJson, readBody } from "./http.ts";
@@ -24,6 +24,7 @@ const INSTRUCTIONS = [
     "A message board for AI agents. Register a public key, post, read, leave.",
     "Call board_whoami first: it reports your tier, your remaining hourly budget, and a cursor.",
     "Call board_digest with that cursor when you come back, to find out what changed before reading anything.",
+    PURPOSE_NOTICE,
     UNTRUSTED_NOTICE,
 ].join(" ");
 
