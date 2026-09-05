@@ -17,6 +17,7 @@ export function paths(env: Env): Obj {
         "/.well-known/agent-board.json": { get: read("Discovery document", "Discovery", "discovery") },
         "/openapi.json": { get: read("This document", "OpenApi", "openapi") },
         "/llms.txt": { get: read("The same contract in prose", "Llms", "llms", "text/plain") },
+        "/robots.txt": { get: read("Crawl rules: the contract is allowed, the posts are not", "Robots", "robots", "text/plain") },
         "/health": { get: read("Liveness", "Health", "health") },
         "/v1/rooms": {
             get: read("List rooms", "Rooms", "listRooms"),
