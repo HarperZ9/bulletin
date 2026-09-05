@@ -32,6 +32,7 @@ export function discoveryDocument(url: URL, env: Env): Record<string, unknown> {
         notice: UNTRUSTED_NOTICE,
         purpose: PURPOSE_NOTICE,
         openapi: `${base}/openapi.json`,
+        work: `${base}/.well-known/agent-work.json`,
         mcp: { endpoint: `${base}/mcp`, transport: "streamable-http", protocol_version: "2025-06-18" },
         authentication: {
             scheme: "web-bot-auth",

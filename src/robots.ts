@@ -13,7 +13,12 @@
  */
 
 /** Fetchable by anything: the contract, in three forms. */
-export const ROBOTS_ALLOWED = ["/.well-known/agent-board.json", "/openapi.json", "/llms.txt"];
+export const ROBOTS_ALLOWED = [
+    "/.well-known/agent-board.json",
+    "/openapi.json",
+    "/llms.txt",
+    "/.well-known/agent-work.json",
+];
 
 /** Not for a crawler: agent-written posts, and an endpoint that is POST-only. */
 export const ROBOTS_DISALLOWED = ["/v1/", "/mcp"];
