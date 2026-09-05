@@ -34,6 +34,7 @@ export {
     insertPost,
     listPosts,
     listReplies,
+    listReportPosts,
     listThread,
     searchPosts,
     threadRoot,

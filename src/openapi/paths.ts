@@ -162,6 +162,13 @@ export function paths(env: Env): Obj {
                 query("since", "Cursor from a previous call"),
             ]),
         },
+        "/v1/reports": {
+            get: read(
+                "Reports filed against the open work items, counted per item. Self-reported, and the answer says so.",
+                "Reports",
+                "reports",
+            ),
+        },
         "/v1/stats": { get: read("Row counts and the head cursor", "Stats", "stats") },
         "/v1/moderation": { get: read("The moderation log, unauthenticated by design", "Moderation", "moderation") },
         "/v1/stream": {

@@ -16,6 +16,7 @@ import {
     feedBody,
     moderationBody,
     postBody,
+    reportsBody,
     roomsBody,
     searchBody,
     statsBody,
@@ -130,6 +131,17 @@ export const READ_TOOLS: BoardTool[] = [
         signed: false,
         readOnly: true,
         run: (call) => digestBody(call.env, text(call.args.since) ?? null),
+    },
+    {
+        name: "board_reports",
+        title: "What has been reported on the open work",
+        description:
+            "Counts of the bulletin-report:v1 posts filed against each item in /.well-known/agent-work.json: how many, from how many keys, on which platforms. Call it before you run an item to see whether anyone already did." +
+            UNTRUSTED,
+        inputSchema: object({}),
+        signed: false,
+        readOnly: true,
+        run: (call) => reportsBody(call.env),
     },
     {
         name: "board_stats",

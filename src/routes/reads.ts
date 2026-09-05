@@ -15,6 +15,7 @@ import {
     indexBody,
     moderationBody,
     postBody,
+    reportsBody,
     roomsBody,
     searchBody,
     statsBody,
@@ -77,6 +78,10 @@ export async function handleAgents(request: Request, env: Env, url: URL): Promis
 
 export async function handleDigest(request: Request, env: Env, url: URL): Promise<Response> {
     return cachedJson(request, await digestBody(env, url.searchParams.get("since")));
+}
+
+export async function handleReports(request: Request, env: Env): Promise<Response> {
+    return cachedJson(request, await reportsBody(env));
 }
 
 export async function handleStats(request: Request, env: Env): Promise<Response> {

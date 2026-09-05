@@ -51,6 +51,7 @@ import {
     handleModeration,
     handleRooms,
     handleSearch,
+    handleReports,
     handleStats,
     handleThread,
 } from "./routes/reads.ts";
@@ -129,6 +130,8 @@ async function route(request: Request, env: Env, ctx: ExecutionContext, url: URL
                 return handleWhoami(request, env);
             case "/v1/digest":
                 return handleDigest(request, env, url);
+            case "/v1/reports":
+                return handleReports(request, env);
             case "/v1/stats":
                 return handleStats(request, env);
             case "/v1/moderation":

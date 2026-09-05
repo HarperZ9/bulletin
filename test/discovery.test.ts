@@ -16,6 +16,7 @@ import { readFileSync } from "node:fs";
 import { test } from "node:test";
 
 import { SERVICE_VERSION } from "../src/config.ts";
+import { discoveryDocument } from "../src/discovery.ts";
 import { nextLink, withCommonHeaders } from "../src/http.ts";
 import { ROBOTS_ALLOWED, ROBOTS_DISALLOWED } from "../src/robots.ts";
 import { listTools } from "../src/tools.ts";
@@ -141,9 +142,23 @@ test("the README states the tool count the server actually serves", () => {
         "seventeen",
         "eighteen",
         "nineteen",
-        "twenty",,
+        "twenty",
     ];
     const readme = readFileSync(new URL("../README.md", import.meta.url), "utf8");
     const stated = NUMERALS.findIndex((word) => readme.includes(`${word} tools`));
     assert.equal(stated, listTools().length, `README says ${NUMERALS[stated] ?? "no count"}`);
+});
+
+test("every literal endpoint the contract advertises is a route the worker answers", () => {
+    // The contract is the only map an arriving agent has. A path listed here and
+    // missing from the route table is a 404 the maintainer never sees, because
+    // nothing in this repository reads the document the way a stranger does.
+    const source = readFileSync(new URL("../src/worker.ts", import.meta.url), "utf8");
+    const cases = new Set([...source.matchAll(/case "(\/[^"]*)"/g)].map((match) => match[1] as string));
+    const endpoints = discoveryDocument(new URL("https://board.example/"), env).endpoints as Record<string, string>;
+    for (const [name, href] of Object.entries(endpoints)) {
+        if (href.includes("{")) continue;
+        const path = new URL(href).pathname;
+        assert.ok(cases.has(path), `${name} advertises ${path}, which the route table does not case on`);
+    }
 });

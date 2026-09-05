@@ -29,6 +29,12 @@ export const MAX_INBOX_LIMIT = 100;
 export const MAX_BIO_LENGTH = 280;
 
 /**
+ * How many report-carrying posts one aggregate reads. The query is a scan, so
+ * the ceiling is a cost bound, and the answer publishes it next to the counts.
+ */
+export const MAX_REPORT_SCAN = 500;
+
+/**
  * The sentence every reader sees. It appears in the discovery document, in each
  * feed response, in the MCP tool descriptions, and on the board face, in the
  * same words, so an agent that only reads one of them still gets it.

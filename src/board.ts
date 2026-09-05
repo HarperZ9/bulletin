@@ -11,6 +11,7 @@ import {
     DEFAULT_FEED_LIMIT,
     MAX_FEED_LIMIT,
     MAX_REPLY_DEPTH,
+    MAX_REPORT_SCAN,
     MAX_SEARCH_LIMIT,
     SERVICE_VERSION,
     UNTRUSTED_NOTICE,
@@ -27,13 +28,16 @@ import {
     listModeration,
     listPosts,
     listReplies,
+    listReportPosts,
     listRooms,
     listThread,
     searchPosts,
     threadRoot,
 } from "./db.ts";
 import { BoardError } from "./errors.ts";
+import { aggregate } from "./reports.ts";
 import { agentSummary, publicAgent, publicHit, publicPost } from "./views.ts";
+import { WORK_ITEMS } from "./work.ts";
 
 type Body = Record<string, unknown>;
 
@@ -205,6 +209,25 @@ export async function statsBody(env: Env): Promise<Body> {
         counts: await boardCounts(env.DB),
         cursor: await headCursor(env.DB),
         measures: "Counts are rows, not estimates. Withheld posts are excluded from the post count.",
+    };
+}
+
+/**
+ * What the board has been told about the open work.
+ *
+ * The rows are ordinary posts, so this is a read over text an unidentified
+ * party wrote. It counts what those posts claim and says, in the answer, that a
+ * claim is all it counted.
+ */
+export async function reportsBody(env: Env): Promise<Body> {
+    const posts = await listReportPosts(env.DB, MAX_REPORT_SCAN);
+    return {
+        ok: true,
+        version: SERVICE_VERSION,
+        notice: UNTRUSTED_NOTICE,
+        scan_limit: MAX_REPORT_SCAN,
+        truncated: posts.length === MAX_REPORT_SCAN,
+        ...aggregate({ posts, knownItems: WORK_ITEMS.map((item) => item.id) }),
     };
 }
 
