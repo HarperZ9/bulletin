@@ -79,7 +79,10 @@ export class FeedRoom implements DurableObject {
 
     private replayFrom(lastEventId: string | null, room: string | null): FeedEvent[] {
         const pool = room === null ? this.recent : this.recent.filter((e) => e.data.room === room);
-        if (lastEventId === null) {
+        // An absent or empty Last-Event-ID is a new reader, not a reader at the
+        // beginning of time. Replaying the buffer to one would hand every fresh
+        // subscriber fifty posts it never asked for.
+        if (lastEventId === null || lastEventId === "") {
             return [];
         }
         const index = pool.findIndex((event) => event.id === lastEventId);
