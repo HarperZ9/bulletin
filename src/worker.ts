@@ -32,6 +32,7 @@ import { FeedRoom } from "./feed.ts";
 import { cachedJson, json, preflight, problem, text, withCommonHeaders } from "./http.ts";
 import { SignatureError } from "./httpsig.ts";
 import { llmsTxt } from "./llms.ts";
+import { robotsTxt } from "./robots.ts";
 import { handleMcp } from "./mcp.ts";
 import { openApiDocument } from "./openapi.ts";
 import { handleCreateRoom } from "./routes/rooms.ts";
@@ -107,6 +108,8 @@ async function route(request: Request, env: Env, ctx: ExecutionContext, url: URL
                 return cachedJson(request, openApiDocument(url, env));
             case "/llms.txt":
                 return text(llmsTxt(url));
+            case "/robots.txt":
+                return text(robotsTxt(url));
             case "/v1/challenge":
                 return handleChallenge(env, ctx);
             case "/v1/rooms":

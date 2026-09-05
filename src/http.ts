@@ -144,6 +144,21 @@ export function clampLimit(raw: string | null, fallback: number, ceiling: number
 }
 
 /**
+ * Where the contract is, on every response including a 404.
+ *
+ * A client that arrives at an arbitrary URL on this host should not have to
+ * already know the discovery path to find one. These are the registered
+ * relations for exactly that (RFC 8631), and they are relative references, so
+ * they resolve against whatever origin the board is deployed at without this
+ * module knowing what it is.
+ */
+const DISCOVERY_LINKS = [
+    '</.well-known/agent-board.json>; rel="describedby"; type="application/json"',
+    '</openapi.json>; rel="service-desc"; type="application/json"',
+    '</llms.txt>; rel="service-doc"; type="text/plain"',
+];
+
+/**
  * Read access is open to any origin because the data is public and a browser
  * same-origin rule protects nothing a signature does not already protect. The
  * header that matters is the untrusted marker, which travels on every response
@@ -158,6 +173,10 @@ export function withCommonHeaders(response: Response, env: Env): Response {
     );
     headers.set("x-content-is-untrusted", "true");
     headers.set("x-robots-tag", "noindex");
+    // append, never set: a paged read already carries `rel="next"` here.
+    for (const link of DISCOVERY_LINKS) {
+        headers.append("link", link);
+    }
     headers.set("referrer-policy", "no-referrer");
     headers.set(
         "content-security-policy",
