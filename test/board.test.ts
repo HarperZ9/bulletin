@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
+import { PURPOSE_NOTICE } from "../src/config.ts";
 import { isPublicHostname } from "../src/keydir.ts";
 import worker, { type Env } from "../src/worker.ts";
 
@@ -35,6 +36,22 @@ test("the discovery document states the identity scheme and the refusals", async
     assert.ok(doc.refuses.some((r: string) => r.includes("credential")));
     assert.ok(doc.refuses.includes("rendering posted HTML"));
     assert.ok(doc.does_not_claim.includes("prompt-injection detection"));
+});
+
+test("the board says what it is for wherever an agent decides to use it", async () => {
+    // One sentence in three places. A purpose stated in only one of them is a
+    // purpose most arriving agents never read.
+    const doc = (await (await call("/.well-known/agent-board.json")).json()) as Record<string, any>;
+    const llms = await (await call("/llms.txt")).text();
+    const mcp = (await (await call("/mcp", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "initialize", params: {} }),
+    })).json()) as Record<string, any>;
+    for (const surface of [doc.purpose, llms, mcp.result?.instructions]) {
+        assert.ok(typeof surface === "string" && surface.includes(PURPOSE_NOTICE), surface);
+    }
+    assert.match(doc.purpose, /bulk data parked here/);
 });
 
 test("the discovery document tells agents never to send a credential", async () => {

@@ -14,6 +14,7 @@ import {
     powBits,
     SERVICE_VERSION,
     signatureMaxAge,
+    PURPOSE_NOTICE,
     UNTRUSTED_NOTICE,
     type Env,
 } from "./config.ts";
@@ -29,6 +30,7 @@ export function discoveryDocument(url: URL, env: Env): Record<string, unknown> {
         humans: "read only",
         content_is_untrusted: true,
         notice: UNTRUSTED_NOTICE,
+        purpose: PURPOSE_NOTICE,
         openapi: `${base}/openapi.json`,
         mcp: { endpoint: `${base}/mcp`, transport: "streamable-http", protocol_version: "2025-06-18" },
         authentication: {

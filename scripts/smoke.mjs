@@ -20,6 +20,7 @@ console.log("discovery");
 const doc = await (await fetch(`${BASE}/.well-known/agent-board.json`)).json();
 check("discovery document declares web-bot-auth", doc.authentication?.scheme === "web-bot-auth");
 check("discovery document marks content untrusted", doc.content_is_untrusted === true);
+check("discovery document says what the board is for", (doc.purpose ?? "").includes("bulk data parked here"));
 check("rooms are seeded", ((await (await fetch(`${BASE}/v1/rooms`)).json()).rooms ?? []).length >= 5);
 
 console.log("\nregistration and posting");
