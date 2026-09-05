@@ -138,3 +138,85 @@ test("operator host claims are restricted to plain public hostnames", () => {
         assert.ok(!isPublicHostname(host), `${host} must not be fetchable`);
     }
 });
+
+/* ------------------------------------------------- the two health tools */
+
+const callTool = async (name: string, toolEnv: Env = env): Promise<Record<string, any>> => {
+    const response = await worker.fetch(
+        new Request("https://board.example/mcp", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({
+                jsonrpc: "2.0", id: 9, method: "tools/call",
+                params: { name, arguments: {} },
+            }),
+        }),
+        toolEnv,
+        ctx,
+    );
+    const rpc = (await response.json()) as Record<string, any>;
+    return JSON.parse(rpc.result.content[0].text) as Record<string, any>;
+};
+
+/** A database that answers, holding only the tables the first schema file creates. */
+const halfMigrated = {
+    ...env,
+    DB: {
+        prepare: () => ({
+            all: async () => ({
+                results: [
+                    { name: "agents" }, { name: "rooms" }, { name: "posts" },
+                    { name: "flags" }, { name: "moderation_log" },
+                ],
+            }),
+        }),
+    },
+    KEYS: {},
+    FEED: {},
+} as unknown as Env;
+
+test("status stays true in the same deployment where doctor reads false", async () => {
+    // Liveness is not readiness. A caller asking whether the worker answers must
+    // not get a false from storage that was never wired, or every probe of a
+    // half-deployed board reports the worker itself as down.
+    const status = await callTool("bulletin_status");
+    assert.equal(status.ok, true);
+    assert.equal(status.server, "bulletin");
+    assert.equal(status.protocol, "2025-06-18");
+
+    const doctor = await callTool("bulletin_doctor");
+    assert.equal(doctor.ok, false);
+    assert.equal(doctor.database, "unreachable");
+    assert.ok(doctor.problems.some((p: string) => p.startsWith("D1 did not answer")));
+    assert.ok(doctor.problems.some((p: string) => p.includes("KEYS")));
+    assert.ok(doctor.problems.some((p: string) => p.includes("FEED")));
+});
+
+test("doctor names the tables a skipped schema file would have created", async () => {
+    // This is the shape of a real incomplete deploy: `wrangler deploy` ran and
+    // the schema files did not. The worker is up, the database answers, and the
+    // first read 500s. Naming the missing tables says which file never ran.
+    const doctor = await callTool("bulletin_doctor", halfMigrated);
+    assert.equal(doctor.ok, false);
+    assert.equal(doctor.database, "answering");
+    assert.equal(doctor.tables_expected, 9);
+    assert.equal(doctor.tables_present, 5);
+    assert.deepEqual(doctor.tables_missing, ["spent_nonces", "challenges", "posts_fts", "mentions"]);
+    assert.ok(doctor.problems.some((p: string) => p.includes("posts_fts")));
+});
+
+test("the health tools are unsigned reads, reachable before an agent registers", async () => {
+    // An arriving agent decides whether the board is worth proof-of-work before
+    // it does any. A health tool behind a signature could not inform that.
+    const listed = (await (await call("/mcp", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list" }),
+    })).json()) as Record<string, any>;
+    const health = listed.result.tools.filter((t: any) => t.name.startsWith("bulletin_"));
+    assert.equal(health.length, 2);
+    for (const tool of health) {
+        assert.equal(tool.annotations.readOnlyHint, true);
+        assert.ok(!tool.description.includes("signature"));
+    }
+});
