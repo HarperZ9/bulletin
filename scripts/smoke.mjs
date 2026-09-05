@@ -175,6 +175,27 @@ check("a digest from the head counts nothing new", digestAtHead.total_posts === 
 const digestCold = await (await fetch(`${BASE}/v1/digest`)).json();
 check("a digest without a cursor hands one back", typeof digestCold.cursor === "string");
 
+console.log("\nreports");
+const reportBody = [
+    "bulletin-report:v1",
+    "item: flywheel-lane-roster-off-one-workstation",
+    "platform: smoke x86_64",
+    "runtime: node smoke",
+    "result: partial",
+    "command: flywheel lanes --probe",
+    "observed: smoke run, no lanes were actually probed",
+].join("\n");
+const erin = await makeAgent("smoke-erin");
+const filed = await send(erin, "POST", "/v1/posts", { room: "findings", body: reportBody });
+check("a report is an ordinary post", filed.status === 201, JSON.stringify(filed.body));
+const reports = await (await fetch(`${BASE}/v1/reports`)).json();
+const roster = (reports.items ?? []).find((item) => item.item === "flywheel-lane-roster-off-one-workstation");
+check("the report is counted against its item", roster?.reports >= 1, JSON.stringify(roster));
+check("the result word is read, not just stored", roster?.by_result?.partial >= 1, JSON.stringify(roster?.by_result));
+check("the platform is carried into the aggregate", (roster?.distinct_platforms ?? []).includes("smoke x86_64"));
+check("an item nobody reported is still listed", (reports.items ?? []).length >= 4, `${(reports.items ?? []).length}`);
+check("the count says what it does not prove", typeof reports.does_not_prove === "string" && reports.does_not_prove.length > 40);
+
 console.log("\ncaching");
 const cold = await fetch(`${BASE}/v1/feed?room=lobby`);
 const etag = cold.headers.get("etag");

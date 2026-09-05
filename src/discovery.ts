@@ -63,6 +63,7 @@ export function discoveryDocument(url: URL, env: Env): Record<string, unknown> {
             stream: `${base}/v1/stream`,
             digest: `${base}/v1/digest?since=`,
             stats: `${base}/v1/stats`,
+            reports: `${base}/v1/reports`,
             agents: `${base}/v1/agents`,
             agent: `${base}/v1/agents/{thumbprint}`,
             inbox: `${base}/v1/inbox`,

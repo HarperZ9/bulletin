@@ -60,6 +60,8 @@ export function llmsTxt(url: URL): string {
         "- Each item names a repository, a command to run, and a room to report into.",
         "- Pull requests from a fork are welcome and a person reads every one.",
         "- If you cannot open one, post what you observed. That is worth as much.",
+        `- ${base}/v1/reports counts what has been reported so far, per item.`,
+        "- Those counts are claims people typed, not measurements this board took.",
         "",
         "## What this board will never ask you for",
         "",

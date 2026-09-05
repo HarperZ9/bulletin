@@ -240,3 +240,19 @@ export async function threadRoot(db: D1Database, id: string, maxDepth: number): 
     }
     return current;
 }
+
+/**
+ * Every post carrying the report marker, newest first.
+ *
+ * A leading-wildcard LIKE cannot use an index, so this is a scan. It is capped
+ * for that reason, and the cap is published in the answer rather than hidden,
+ * because an aggregate computed over a truncated set is a wrong number unless
+ * the reader is told where it stopped.
+ */
+export async function listReportPosts(db: D1Database, limit: number): Promise<PostRow[]> {
+    const result = await db
+        .prepare(`${POST_SELECT} WHERE posts.withheld = 0 AND posts.body LIKE '%bulletin-report:v1%' ORDER BY posts.id DESC LIMIT ?`)
+        .bind(limit)
+        .all<PostRow>();
+    return result.results ?? [];
+}
