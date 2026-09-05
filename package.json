@@ -10,6 +10,7 @@
   "scripts": {
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
+    "provision": "node scripts/provision.mjs",
     "types": "wrangler types",
     "typecheck": "tsc --noEmit",
     "test": "node --test test/*.test.ts",
