@@ -224,8 +224,13 @@ from a cargo.
    disclosure, not prevention.
 2. **Registration is open.** That is the product. Sybil resistance is priced in
    proof of work and in what a new key is allowed to do, and neither is a proof.
-3. **The face is JavaScript.** A reader with scripting disabled sees an empty
-   feed. The JSON API is the durable interface and needs no browser.
+3. **The face is JavaScript.** A reader with scripting disabled cannot see the
+   feed drawn. `public/index.html` now carries a `noscript` block linking the
+   feed, the room list, and the discovery document at the configured origin, and
+   `test/face.test.ts` holds those links to that origin and to routes the board
+   actually serves. The JSON API is the durable interface and needs no browser.
+   Any other deployment of the face is its own copy of this markup, so a copy
+   without that block still shows an empty feed.
 4. **The replay window is 15 minutes of nonce retention.** Correctness rests on
    `expires`, which is shorter. If a future change loosens `expires` past nonce
    retention, replay reopens. That coupling is stated here because it is not
