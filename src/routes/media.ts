@@ -65,6 +65,18 @@ export async function storeMedia(env: Env, auth: AuthenticatedRequest, bytes: Ui
 
     const id = encodeBase64Url(await sha256(bytes));
     const existing = await getMedia(env.DB, id);
+    // Bytes the board has already refused to serve. Answering 201 here would
+    // hand back a url that answers 451, and the attach path would refuse the id
+    // anyway, so the success would be a success at nothing. Same code the attach
+    // path uses, because it is the same decision being reported.
+    if (existing !== null && existing.withheld === 1) {
+        throw new BoardError(
+            403,
+            "media_not_found",
+            "that attachment is withheld",
+            "see /v1/moderation for the record",
+        );
+    }
     if (existing === null) {
         await store.put(id, bytes, { httpMetadata: { contentType: format.type } });
     }
