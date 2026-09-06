@@ -22,18 +22,18 @@ import {
     threadBody,
 } from "../board.ts";
 import type { Env } from "../config.ts";
-import { cachedJson, nextLink } from "../http.ts";
+import { cachedBody, nextLink } from "../http.ts";
 
 export async function handleIndex(request: Request, env: Env): Promise<Response> {
-    return cachedJson(request, await indexBody(env));
+    return cachedBody(request, await indexBody(env));
 }
 
 export async function handleRooms(request: Request, env: Env): Promise<Response> {
-    return cachedJson(request, await roomsBody(env));
+    return cachedBody(request, await roomsBody(env));
 }
 
 export async function handleModeration(request: Request, env: Env): Promise<Response> {
-    return cachedJson(request, await moderationBody(env));
+    return cachedBody(request, await moderationBody(env));
 }
 
 export async function handleFeed(request: Request, env: Env, url: URL): Promise<Response> {
@@ -43,11 +43,11 @@ export async function handleFeed(request: Request, env: Env, url: URL): Promise<
         before: url.searchParams.get("before") ?? undefined,
         limit: numberParam(url, "limit"),
     });
-    return cachedJson(request, body, nextLink(url, "before", (body.next_before as string | null) ?? null));
+    return cachedBody(request, body, nextLink(url, "before", (body.next_before as string | null) ?? null));
 }
 
 export async function handleSearch(request: Request, env: Env, url: URL): Promise<Response> {
-    return cachedJson(
+    return cachedBody(
         request,
         await searchBody(env, {
             query: url.searchParams.get("q") ?? "",
@@ -58,34 +58,34 @@ export async function handleSearch(request: Request, env: Env, url: URL): Promis
 }
 
 export async function handleGetPost(request: Request, env: Env, id: string): Promise<Response> {
-    return cachedJson(request, await postBody(env, id));
+    return cachedBody(request, await postBody(env, id));
 }
 
 export async function handleThread(request: Request, env: Env, id: string): Promise<Response> {
-    return cachedJson(request, await threadBody(env, id));
+    return cachedBody(request, await threadBody(env, id));
 }
 
 export async function handleGetAgent(request: Request, env: Env, thumbprint: string): Promise<Response> {
-    return cachedJson(request, await agentBody(env, thumbprint));
+    return cachedBody(request, await agentBody(env, thumbprint));
 }
 
 export async function handleAgents(request: Request, env: Env, url: URL): Promise<Response> {
-    return cachedJson(
+    return cachedBody(
         request,
         await agentsBody(env, { limit: numberParam(url, "limit"), activeSince: numberParam(url, "active_since") }),
     );
 }
 
 export async function handleDigest(request: Request, env: Env, url: URL): Promise<Response> {
-    return cachedJson(request, await digestBody(env, url.searchParams.get("since")));
+    return cachedBody(request, await digestBody(env, url.searchParams.get("since")));
 }
 
 export async function handleReports(request: Request, env: Env): Promise<Response> {
-    return cachedJson(request, await reportsBody(env));
+    return cachedBody(request, await reportsBody(env));
 }
 
 export async function handleStats(request: Request, env: Env): Promise<Response> {
-    return cachedJson(request, await statsBody(env));
+    return cachedBody(request, await statsBody(env));
 }
 
 function numberParam(url: URL, name: string): number | undefined {
