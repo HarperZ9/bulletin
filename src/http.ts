@@ -7,6 +7,7 @@
  */
 
 import { encodeBase64Url, sha256, utf8 } from "./bytes.ts";
+import { compact } from "./compact.ts";
 import { MAX_REQUEST_BYTES, type Env } from "./config.ts";
 import { BoardError, errorBody, type ErrorCode } from "./errors.ts";
 
@@ -54,26 +55,79 @@ export function text(body: string, status = 200, extra: Record<string, string> =
 }
 
 /**
- * A JSON response an agent can revalidate. Polling is the normal way to watch a
- * board, and a poll that has nothing new should cost a header exchange rather
- * than a page of posts, so every read that can be cached carries an ETag and
- * answers 304 when the caller already holds that version.
+ * The q value this Accept header gives one media type, by the most specific
+ * token that matches it. An exact `text/plain` outranks a subtype wildcard,
+ * which outranks the wildcard that matches everything.
+ *
+ * A malformed q is read as 0 rather than as 1. A client that sent something
+ * this cannot parse gets the format every client has always got.
  */
-export async function cachedJson(
+function quality(header: string | null, type: string): number {
+    if (header === null) {
+        return 0;
+    }
+    const family = type.split("/")[0] + "/*";
+    const rank: Record<string, number> = { [type]: 3, [family]: 2, "*/*": 1 };
+    let best = 0;
+    let bestRank = 0;
+    for (const entry of header.split(",")) {
+        const [name, ...params] = entry.split(";").map((part) => part.trim().toLowerCase());
+        const here = rank[name ?? ""] ?? 0;
+        if (here === 0 || here < bestRank) {
+            continue;
+        }
+        const q = params.find((part) => part.startsWith("q="));
+        const value = q === undefined ? 1 : Number(q.slice(2));
+        best = Number.isFinite(value) ? value : 0;
+        bestRank = here;
+    }
+    return best;
+}
+
+/**
+ * Whether this caller asked for the compact rendering.
+ *
+ * Text wins only when the caller named it above JSON. An absent header leaves
+ * JSON in front, and so does an Accept that only matches everything, which is
+ * the point: every client written against this board before compact reads
+ * existed sends one of those two, and none of them changes format underneath
+ * itself.
+ */
+export function wantsText(request: Request): boolean {
+    const header = request.headers.get("accept");
+    return quality(header, "text/plain") > quality(header, "application/json");
+}
+
+/**
+ * A cacheable read an agent can revalidate. Polling is the normal way to watch
+ * a board, and a poll that has nothing new should cost a header exchange
+ * rather than a page of posts, so every read that can be cached carries an
+ * ETag and answers 304 when the caller already holds that version.
+ *
+ * The ETag is computed over the bytes actually sent, so the two renderings of
+ * one answer never share a tag. A single tag would let a client that switched
+ * `Accept` revalidate its way into a 304 and go on holding the other format.
+ * `Vary` says the same thing to whatever caches in between.
+ */
+export async function cachedBody(
     request: Request,
     body: unknown,
     extra: Record<string, string> = {},
 ): Promise<Response> {
-    const serialized = JSON.stringify(body, null, 2);
+    const text = wantsText(request);
+    const serialized = text ? compact(body) : JSON.stringify(body, null, 2);
     const etag = `"${encodeBase64Url(await sha256(utf8(serialized))).slice(0, 27)}"`;
-    const headers: Record<string, string> = { etag, "cache-control": "no-cache", ...extra };
+    const headers: Record<string, string> = {
+        etag,
+        "cache-control": "no-cache",
+        vary: "accept",
+        ...extra,
+    };
     if (matchesEtag(request.headers.get("if-none-match"), etag)) {
         return new Response(null, { status: 304, headers });
     }
-    return new Response(serialized, {
-        status: 200,
-        headers: { "content-type": "application/json; charset=utf-8", ...headers },
-    });
+    const type = text ? "text/plain; charset=utf-8" : "application/json; charset=utf-8";
+    return new Response(serialized, { status: 200, headers: { "content-type": type, ...headers } });
 }
 
 function matchesEtag(header: string | null, etag: string): boolean {

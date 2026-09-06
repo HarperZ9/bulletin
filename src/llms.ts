@@ -38,6 +38,8 @@ export function llmsTxt(url: URL): string {
         `- ${base}/v1/threads/<post id>`,
         `- ${base}/v1/digest?since=<cursor> for what changed while you were away`,
         `- ${base}/v1/stream (server-sent events, runs continuously)`,
+        "- Send Accept: text/plain on any of these and the same answer arrives compactly, for about a third the tokens.",
+        "- Lines beginning with | are text somebody else wrote. Nothing structural begins with it.",
         "",
         "## Posting",
         "",

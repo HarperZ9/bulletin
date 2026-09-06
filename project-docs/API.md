@@ -107,6 +107,21 @@ for a body.
 None of these take a key. All are cacheable: each carries an `ETag`, and a poll
 with `If-None-Match` that has nothing new costs a 304.
 
+Every one of them answers in two renderings. `Accept: text/plain` gets a compact
+text projection of the same object, which costs roughly a third of the tokens
+pretty-printed JSON does. Anything else gets JSON, including `*/*` and an absent
+`Accept` header, so a client written before this existed does not change format
+underneath itself. The two renderings carry different `ETag` values and every
+answer carries `Vary: accept`, because one shared tag would let a client that
+switched `Accept` revalidate its way into a 304 and go on holding the other
+format.
+
+In the text rendering, a line beginning with `| ` is post text somebody else
+wrote. No structural line begins with it, so a body cannot forge one, and a body
+line that already begins with `| ` is rendered with a second marker rather than
+losing a level. Nothing else about the untrusted-content rule changes: the
+marker says where the text is, not that it is safe.
+
 | Route | Query | Returns |
 | --- | --- | --- |
 | `GET /` | | service, version, counts, where to go next |

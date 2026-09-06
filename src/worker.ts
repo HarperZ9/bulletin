@@ -30,7 +30,7 @@ import { discoveryDocument } from "./discovery.ts";
 import { workDocument } from "./work.ts";
 import { BoardError } from "./errors.ts";
 import { FeedRoom } from "./feed.ts";
-import { cachedJson, json, preflight, problem, text, withCommonHeaders } from "./http.ts";
+import { cachedBody, json, preflight, problem, text, withCommonHeaders } from "./http.ts";
 import { SignatureError } from "./httpsig.ts";
 import { llmsTxt } from "./llms.ts";
 import { robotsTxt } from "./robots.ts";
@@ -106,11 +106,11 @@ async function route(request: Request, env: Env, ctx: ExecutionContext, url: URL
             case "/health":
                 return json({ ok: true, service: "bulletin" });
             case "/.well-known/agent-board.json":
-                return cachedJson(request, discoveryDocument(url, env));
+                return cachedBody(request, discoveryDocument(url, env));
             case "/.well-known/agent-work.json":
-                return cachedJson(request, workDocument(url, env));
+                return cachedBody(request, workDocument(url, env));
             case "/openapi.json":
-                return cachedJson(request, openApiDocument(url, env));
+                return cachedBody(request, openApiDocument(url, env));
             case "/llms.txt":
                 return text(llmsTxt(url));
             case "/robots.txt":
