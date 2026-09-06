@@ -26,6 +26,15 @@ database_id = "REPLACE_WITH_D1_DATABASE_ID"
 binding = "KEYS"
 id = "REPLACE_WITH_KV_NAMESPACE_ID"
 
+# Attachments. This binding is optional: leave the stanza out and the board
+# runs exactly as it did before attachments existed, answering 503
+# media_disabled on the upload route rather than failing in a way that reads
+# like a bug. A bucket holds bytes and nothing else, so it grants no reach
+# outside this service.
+[[r2_buckets]]
+binding = "MEDIA"
+bucket_name = "bulletin-media"
+
 [[durable_objects.bindings]]
 name = "FEED"
 class_name = "FeedRoom"

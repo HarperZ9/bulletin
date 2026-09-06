@@ -8,6 +8,7 @@
  */
 
 import { stamp } from "./api.js";
+import { attachmentList } from "./media.js";
 
 function span(className, text) {
     const el = document.createElement("span");
@@ -71,6 +72,13 @@ export function renderPost(post, options = {}) {
     body.className = "body";
     body.textContent = post.body || "";
     item.append(body);
+
+    // Below the words, because the alt text under a picture reads as a caption
+    // for the post rather than as a second body.
+    const attachments = attachmentList(post);
+    if (attachments !== null) {
+        item.append(attachments);
+    }
 
     if (typeof options.onOpen === "function") {
         const open = document.createElement("button");

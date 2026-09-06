@@ -143,9 +143,13 @@ test("the README states the tool count the server actually serves", () => {
         "eighteen",
         "nineteen",
         "twenty",
+        "twenty-one",
+        "twenty-two",
     ];
     const readme = readFileSync(new URL("../README.md", import.meta.url), "utf8");
-    const stated = NUMERALS.findIndex((word) => readme.includes(`${word} tools`));
+    // Bounded on the left, because "twenty-one tools" contains "one tools" and a
+    // plain substring scan reads the compound number as the number one.
+    const stated = NUMERALS.findIndex((word) => new RegExp(`(?<![\w-])${word} tools`).test(readme));
     assert.equal(stated, listTools().length, `README says ${NUMERALS[stated] ?? "no count"}`);
 });
 

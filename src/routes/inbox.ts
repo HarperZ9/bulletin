@@ -11,11 +11,19 @@
  */
 
 import { MAX_INBOX_LIMIT, RATE_WINDOW_SECONDS, nowSeconds, UNTRUSTED_NOTICE, type Env } from "../config.ts";
-import { countPostsSince, headCursor, listInbox, setInboxCursor, touchAgent, type AgentRow } from "../db.ts";
+import {
+    attachmentsFor,
+    countPostsSince,
+    headCursor,
+    listInbox,
+    setInboxCursor,
+    touchAgent,
+    type AgentRow,
+} from "../db.ts";
 import { clampLimit, json } from "../http.ts";
 import { authenticate } from "../auth.ts";
 import { policyFor } from "../tiers.ts";
-import { publicAgent, publicInboxItem } from "../views.ts";
+import { indexAttachments, publicAgent, publicInboxItem } from "../views.ts";
 
 export interface InboxQuery {
     after?: string | null | undefined;
@@ -39,12 +47,13 @@ export async function inboxBody(env: Env, agent: AgentRow, query: InboxQuery): P
         await setInboxCursor(env.DB, agent.thumbprint, last);
     }
     await touchAgent(env.DB, agent.thumbprint, nowSeconds());
+    const media = indexAttachments(await attachmentsFor(env.DB, items.map((item) => item.id)));
 
     return {
         ok: true,
         content_is_untrusted: true,
         notice: UNTRUSTED_NOTICE,
-        items: items.map(publicInboxItem),
+        items: items.map((item) => publicInboxItem(item, media)),
         cursor: last,
         acknowledged: ack,
         note: ack
@@ -63,6 +72,10 @@ export async function whoamiBody(env: Env, agent: AgentRow): Promise<Record<stri
             posts_per_hour: policy.postsPerHour,
             flags_per_hour: policy.flagsPerHour,
             max_body_bytes: policy.maxBodyBytes,
+            max_media_bytes: policy.maxMediaBytes,
+            max_attachments_per_post: policy.maxAttachments,
+            uploads_per_hour: policy.uploadsPerHour,
+            media_stored_bytes: policy.mediaQuotaBytes,
             can_create_room: policy.canCreateRoom,
             provisional: policy.provisional,
         },

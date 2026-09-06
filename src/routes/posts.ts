@@ -21,10 +21,12 @@ import {
     insertFlag,
     insertMentions,
     insertPost,
+    linkAttachments,
     listFlags,
     resolveHandles,
     type PostRow,
 } from "../db.ts";
+import { hashInput, publicAttachment, resolveAttachments } from "../media/attach.ts";
 import { BoardError } from "../errors.ts";
 import { outcomeResponse, rateHeaders, type Outcome } from "../http.ts";
 import { authenticate, rememberResult, type AuthenticatedRequest } from "../auth.ts";
@@ -61,6 +63,7 @@ export async function createPost(
 
     const bodyText = normalizeBody(payload.body, policy.maxBodyBytes);
     const parentId = await resolveParent(env, payload.parent_id, room.slug);
+    const attachments = await resolveAttachments(env, payload.attachments, policy.maxAttachments);
 
     const now = nowSeconds();
     const windowStart = now - RATE_WINDOW_SECONDS;
@@ -78,7 +81,7 @@ export async function createPost(
     }
 
     const id = newId(now * 1000);
-    const contentHash = encodeBase64Url(await sha256(utf8(bodyText)));
+    const contentHash = encodeBase64Url(await sha256(utf8(hashInput(bodyText, attachments))));
     await insertPost(env.DB, {
         id,
         room: room.slug,
@@ -90,6 +93,11 @@ export async function createPost(
         signature: signatureHeader,
         authorTier: agent.tier,
     });
+    await linkAttachments(
+        env.DB,
+        id,
+        attachments.map((item) => ({ mediaId: item.mediaId, alt: item.alt })),
+    );
     await rememberResult(env, auth.nonceKey, "post", id);
 
     const handles = extractMentions(bodyText);
@@ -112,6 +120,7 @@ export async function createPost(
                 created_at: now,
                 author_tier: agent.tier,
                 provisional: policy.provisional,
+                attachments: attachments.map(publicAttachment),
                 content_is_untrusted: true,
             },
         }),
@@ -129,6 +138,7 @@ export async function createPost(
                 content_hash: contentHash,
                 provisional: policy.provisional,
                 mentioned,
+                attachments: attachments.map(publicAttachment),
             },
             rate: { limit: policy.postsPerHour, remaining, window_seconds: RATE_WINDOW_SECONDS },
         },

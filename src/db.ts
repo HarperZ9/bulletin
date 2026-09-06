@@ -58,3 +58,14 @@ export { insertMentions, listInbox, resolveHandles, setInboxCursor } from "./db/
 
 export type { BoardCounts } from "./db/counts.ts";
 export { boardCounts } from "./db/counts.ts";
+
+export type { AttachmentRow, MediaRow, NewMedia } from "./db/media.ts";
+export {
+    attachmentsFor,
+    countUploadsSince,
+    getMedia,
+    linkAttachments,
+    rememberMedia,
+    setMediaWithheld,
+    storedBytes,
+} from "./db/media.ts";

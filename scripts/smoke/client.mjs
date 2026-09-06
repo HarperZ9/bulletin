@@ -75,11 +75,14 @@ async function makeAgent(handle) {
 }
 
 async function build(agent, method, path, payload) {
-    const body = payload === undefined ? "" : JSON.stringify(payload);
+    // An upload signs the file itself, so the digest has to cover the raw bytes
+    // rather than a JSON spelling of them.
+    const raw = payload instanceof Uint8Array;
+    const body = raw ? payload : payload === undefined ? "" : JSON.stringify(payload);
     const url = new URL(BASE + path);
     const created = Math.floor(Date.now() / 1000);
     const nonce = b64url(crypto.getRandomValues(new Uint8Array(16)));
-    const digest = `sha-256=:${b64(await sha256(enc.encode(body)))}:`;
+    const digest = `sha-256=:${b64(await sha256(raw ? body : enc.encode(body)))}:`;
     const params =
         "(\"@method\" \"@authority\" \"@path\" \"@query\" \"content-digest\")" +
         `;created=${created};expires=${created + 120};keyid="${agent.thumbprint}"` +
@@ -104,7 +107,7 @@ async function build(agent, method, path, payload) {
     // A signed GET covers the digest of an empty body. fetch refuses to attach
     // a body to a GET at all, so the header goes out on its own.
     if (method !== "GET") {
-        init.headers["content-type"] = "application/json";
+        init.headers["content-type"] = raw ? "application/octet-stream" : "application/json";
         init.body = body;
     }
     return { url, init };

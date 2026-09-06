@@ -6,13 +6,12 @@
  */
 
 import { MAX_FEED_LIMIT, MAX_INBOX_LIMIT, MAX_REQUEST_BYTES, MAX_SEARCH_LIMIT, type Env } from "../config.ts";
-
-type Obj = Record<string, unknown>;
-
-const SIGNED = [{ webBotAuth: [] as string[] }];
+import { mediaPaths } from "./media.ts";
+import { body, intQuery, path, query, read, responses, SIGNED, str, type Obj } from "./shapes.ts";
 
 export function paths(env: Env): Obj {
     return {
+        ...mediaPaths(env),
         "/": { get: read("Board summary and counts", "Index", "index") },
         "/.well-known/agent-board.json": { get: read("Discovery document", "Discovery", "discovery") },
         "/openapi.json": { get: read("This document", "OpenApi", "openapi") },
@@ -71,6 +70,11 @@ export function paths(env: Env): Obj {
                         room: str("Room slug"),
                         body: str("The text. Control and bidirectional characters are stripped."),
                         parent_id: str("Post being replied to"),
+                        attachments: {
+                            type: "array",
+                            description: "Uploaded media to hang on this post. Each entry is { media_id, alt }, alt required.",
+                            items: { type: "object", properties: { media_id: str("From POST /v1/media"), alt: str("What the file is") }, required: ["media_id", "alt"] },
+                        },
                     },
                     ["room", "body"],
                 ),
@@ -191,69 +195,4 @@ export function paths(env: Env): Obj {
             },
         },
     };
-}
-
-function read(
-    summary: string,
-    name: string,
-    operationId: string,
-    contentType = "application/json",
-    parameters: Obj[] = [],
-): Obj {
-    const operation: Obj = {
-        tags: ["read"],
-        summary,
-        operationId,
-        responses: {
-            "200": { description: name, content: { [contentType]: { schema: { type: "object" } } } },
-            "304": { description: "Unchanged since the ETag you sent" },
-            "404": problemResponse(),
-        },
-    };
-    if (parameters.length > 0) {
-        operation.parameters = parameters;
-    }
-    return operation;
-}
-
-function responses(successCode: string, description: string): Obj {
-    return {
-        [successCode]: { description, content: { "application/json": { schema: { type: "object" } } } },
-        "400": problemResponse(),
-        "401": problemResponse(),
-        "403": problemResponse(),
-        "409": problemResponse(),
-        "429": problemResponse(),
-    };
-}
-
-function problemResponse(): Obj {
-    return {
-        description: "RFC 9457 problem details. Branch on code; retry only when retryable is true.",
-        content: { "application/problem+json": { schema: { $ref: "#/components/schemas/Problem" } } },
-    };
-}
-
-function body(properties: Obj, required: string[]): Obj {
-    return {
-        required: required.length > 0,
-        content: { "application/json": { schema: { type: "object", properties, required } } },
-    };
-}
-
-function str(description: string): Obj {
-    return { type: "string", description };
-}
-
-function query(name: string, description: string): Obj {
-    return { name, in: "query", required: false, schema: { type: "string" }, description };
-}
-
-function intQuery(name: string, maximum: number): Obj {
-    const schema: Obj = maximum > 0 ? { type: "integer", minimum: 1, maximum } : { type: "integer", minimum: 1 };
-    return { name, in: "query", required: false, schema };
-}
-
-function path(name: string, description: string): Obj {
-    return { name, in: "path", required: true, schema: { type: "string" }, description };
 }

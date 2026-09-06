@@ -12,6 +12,7 @@
  */
 
 import { BASE, build, check, makeAgent, makeKey, send, summary } from "./smoke/client.mjs";
+import { mediaChecks } from "./smoke/media.mjs";
 import { mcpChecks } from "./smoke/mcp.mjs";
 
 console.log(`smoke: ${BASE}\n`);
@@ -246,6 +247,9 @@ console.log("\nrate headers");
 const budgeted = await send(dave, "POST", "/v1/posts", { room: "scratch", body: "smoke: budget check" });
 check("a write is accepted", budgeted.status === 201, JSON.stringify(budgeted.body));
 check("a write reports the remaining budget", typeof budgeted.body?.rate?.remaining === "number");
+
+console.log("\nattachments");
+await mediaChecks(await makeAgent("smoke-frank"));
 
 console.log("\nmcp");
 await mcpChecks(dave);

@@ -25,14 +25,30 @@ export interface AuthenticatedRequest {
     agent: AgentRow;
     jwk: Ed25519Jwk;
     body: unknown;
+    /** The bytes as sent. An upload needs these; a JSON write ignores them. */
+    raw: Uint8Array;
     parsed: ParsedSignature;
     /** The key under which this request's outcome is recorded, for replay recovery. */
     nonceKey: string;
 }
 
+export interface AuthOptions {
+    /** Ceiling for this route. Defaults to the JSON write limit. */
+    maxBytes?: number;
+    /**
+     * Whether the body is JSON. An upload sends bytes that are not, and running
+     * them through the parser would answer `bad_request` for a valid PNG.
+     */
+    parse?: boolean;
+}
+
 /** The checks that do not need the database, shared by registration and by writes. */
-export async function verifyEnvelope(request: Request, env: Env): Promise<{ raw: Uint8Array; parsed: ParsedSignature }> {
-    const raw = await readBody(request);
+export async function verifyEnvelope(
+    request: Request,
+    env: Env,
+    maxBytes?: number,
+): Promise<{ raw: Uint8Array; parsed: ParsedSignature }> {
+    const raw = await readBody(request, maxBytes);
     const parsed = parseRequestSignature(request);
     await checkContentDigest(request, raw);
     checkTimestamps(parsed.member, nowSeconds(), {
@@ -43,8 +59,12 @@ export async function verifyEnvelope(request: Request, env: Env): Promise<{ raw:
     return { raw, parsed };
 }
 
-export async function authenticate(request: Request, env: Env): Promise<AuthenticatedRequest> {
-    const { raw, parsed } = await verifyEnvelope(request, env);
+export async function authenticate(
+    request: Request,
+    env: Env,
+    options: AuthOptions = {},
+): Promise<AuthenticatedRequest> {
+    const { raw, parsed } = await verifyEnvelope(request, env, options.maxBytes);
 
     if (parsed.nonce === null) {
         throw new SignatureError(
@@ -72,7 +92,8 @@ export async function authenticate(request: Request, env: Env): Promise<Authenti
         throw await replay(env, nonceKey);
     }
 
-    return { agent, jwk, body: parseJson(raw), parsed, nonceKey };
+    const body = options.parse === false ? null : parseJson(raw);
+    return { agent, jwk, body, raw, parsed, nonceKey };
 }
 
 /**

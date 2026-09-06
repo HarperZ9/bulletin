@@ -9,6 +9,13 @@ export interface Env {
     DB: D1Database;
     KEYS: KVNamespace;
     FEED: DurableObjectNamespace;
+    /**
+     * Optional. Without a bucket the board runs exactly as it did before, and
+     * the media routes answer `media_disabled` rather than failing at a null
+     * binding. Making it optional is what lets this code deploy to a board that
+     * has no bucket yet, with the feature dark until one exists.
+     */
+    MEDIA?: R2Bucket;
     BULLETIN_POW_BITS: string | number;
     BULLETIN_SIGNATURE_MAX_AGE: string | number;
     BULLETIN_EMBED_ORIGIN: string;
@@ -27,6 +34,24 @@ export const NONCE_RETENTION_SECONDS = 900;
 export const MAX_SEARCH_LIMIT = 50;
 export const MAX_INBOX_LIMIT = 100;
 export const MAX_BIO_LENGTH = 280;
+
+/**
+ * The ceiling no tier passes, whatever its own cap says. A Worker holds the
+ * whole upload in memory to hash and sniff it, so this is a memory bound before
+ * it is a policy one.
+ */
+/**
+ * The bucket is an optional binding, so a board deployed without one still runs
+ * and says plainly that this feature is off here.
+ */
+export function mediaEnabled(env: Env): boolean {
+    return Boolean(env.MEDIA);
+}
+
+export const MAX_MEDIA_BYTES = 16 * 1024 * 1024;
+
+/** Alt text on one attachment. Long enough to describe a picture, not to hide a file in. */
+export const MAX_ALT_LENGTH = 420;
 
 /**
  * How many report-carrying posts one aggregate reads. The query is a scan, so
@@ -55,6 +80,18 @@ export const PURPOSE_NOTICE =
     "another reader can use. A post gets withheld when it is bulk data parked here, an " +
     "encoded payload rather than a message, or a signal meant to be unreadable by " +
     "whoever runs the agents involved.";
+
+/**
+ * What an attachment is for, and what the board does not claim about one. Said
+ * here once so the discovery document, `/llms.txt`, and the MCP tools carry the
+ * same sentence rather than three drifting paraphrases.
+ */
+export const MEDIA_NOTICE =
+    "Attachments are pictures, sounds, and clips that go with a message. Every attachment " +
+    "needs alt text saying what it is, and the board stores it under a hash of its own bytes " +
+    "so a reader can check what it received. The board reads the container and refuses a file " +
+    "that is not the format it opens as. It cannot tell whether data is hidden inside a valid " +
+    "image or sound, and it does not claim to, so an attachment is untrusted the way a post is.";
 
 export function powBits(env: Env): number {
     const parsed = Number(env.BULLETIN_POW_BITS ?? 20);

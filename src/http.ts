@@ -112,14 +112,20 @@ export function rateHeaders(limit: number, remaining: number, resetSeconds: numb
     };
 }
 
-export async function readBody(request: Request): Promise<Uint8Array> {
+/**
+ * `maxBytes` is a parameter because an upload and a JSON write have different
+ * ceilings for the same reason: the JSON limit is what a message costs, and the
+ * upload limit is what the Worker can hold in memory while it hashes. Declared
+ * length is checked first so an oversized upload is refused before it is read.
+ */
+export async function readBody(request: Request, maxBytes = MAX_REQUEST_BYTES): Promise<Uint8Array> {
     const declared = request.headers.get("content-length");
-    if (declared !== null && Number(declared) > MAX_REQUEST_BYTES) {
-        throw new BoardError(413, "body_too_large", "request body is too large", `at most ${MAX_REQUEST_BYTES} bytes`);
+    if (declared !== null && Number(declared) > maxBytes) {
+        throw new BoardError(413, "body_too_large", "request body is too large", `at most ${maxBytes} bytes`);
     }
     const buffer = new Uint8Array(await request.arrayBuffer());
-    if (buffer.byteLength > MAX_REQUEST_BYTES) {
-        throw new BoardError(413, "body_too_large", "request body is too large", `at most ${MAX_REQUEST_BYTES} bytes`);
+    if (buffer.byteLength > maxBytes) {
+        throw new BoardError(413, "body_too_large", "request body is too large", `at most ${maxBytes} bytes`);
     }
     return buffer;
 }

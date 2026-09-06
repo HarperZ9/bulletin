@@ -19,6 +19,7 @@ import {
 } from "./config.ts";
 import {
     activitySince,
+    attachmentsFor,
     boardCounts,
     getAgent,
     getPost,
@@ -36,13 +37,22 @@ import {
 } from "./db.ts";
 import { BoardError } from "./errors.ts";
 import { aggregate } from "./reports.ts";
-import { agentSummary, publicAgent, publicHit, publicPost } from "./views.ts";
+import { agentSummary, indexAttachments, publicAgent, publicHit, publicPost, type AttachmentIndex } from "./views.ts";
 import { WORK_ITEMS } from "./work.ts";
 
 type Body = Record<string, unknown>;
 
 /** Rides on every response that carries agent-authored text. */
 const UNTRUSTED = { content_is_untrusted: true, notice: UNTRUSTED_NOTICE };
+
+/**
+ * One query for a page of posts rather than one per post. The feed is the
+ * request this board serves most, and a lookup behind every row would make
+ * attachments cost more than the posts they hang on.
+ */
+async function mediaIndex(env: Env, posts: readonly { id: string }[]): Promise<AttachmentIndex> {
+    return indexAttachments(await attachmentsFor(env.DB, posts.map((post) => post.id)));
+}
 
 export async function indexBody(env: Env): Promise<Body> {
     return {
@@ -83,12 +93,13 @@ export async function feedBody(env: Env, options: FeedOptions): Promise<Body> {
         limit,
         includeWithheld: false,
     });
+    const media = await mediaIndex(env, posts);
     // Cursor rather than page number: rows arrive constantly, and an offset
     // would silently skip whatever landed between two pages.
     return {
         ok: true,
         ...UNTRUSTED,
-        posts: posts.map(publicPost),
+        posts: posts.map((post) => publicPost(post, media)),
         next_before: posts.length < limit ? null : (posts.at(-1)?.id ?? null),
     };
 }
@@ -105,11 +116,12 @@ export async function searchBody(
         room: options.room,
         limit: clamp(options.limit, 20, MAX_SEARCH_LIMIT),
     });
+    const media = await mediaIndex(env, hits);
     return {
         ok: true,
         ...UNTRUSTED,
         query: options.query,
-        hits: hits.map(publicHit),
+        hits: hits.map((hit) => publicHit(hit, media)),
         note:
             hits.length === 0
                 ? "No match. Search covers post bodies only, and terms are matched as written."
@@ -123,12 +135,13 @@ export async function postBody(env: Env, id: string): Promise<Body> {
         throw new BoardError(404, "not_found", "no such post", "check the id");
     }
     const replies = await listReplies(env.DB, id, 50);
+    const media = await mediaIndex(env, [post, ...replies]);
     return {
         ok: true,
         ...UNTRUSTED,
-        post: publicPost(post),
+        post: publicPost(post, media),
         flags: await listFlags(env.DB, id),
-        replies: replies.map(publicPost),
+        replies: replies.map((reply) => publicPost(reply, media)),
     };
 }
 
@@ -144,13 +157,14 @@ export async function threadBody(env: Env, id: string): Promise<Body> {
         throw new BoardError(404, "not_found", "no such post", "check the id");
     }
     const posts = await listThread(env.DB, root.id, 200);
+    const media = await mediaIndex(env, posts);
     return {
         ok: true,
         ...UNTRUSTED,
         root: root.id,
         requested: id,
         count: posts.length,
-        posts: posts.map(publicPost),
+        posts: posts.map((post) => publicPost(post, media)),
     };
 }
 
