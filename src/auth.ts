@@ -79,6 +79,18 @@ export async function authenticate(
     if (agent.suspended_at !== null) {
         throw new SignatureError("key is suspended", "see /v1/moderation for the record", 403, "key_suspended");
     }
+    // A rotated key is inert rather than suspended, and the codes are separate
+    // because the fixes are opposite: a suspension is a moderation decision to
+    // read, and this is a key that already handed its account somewhere the
+    // caller is being told how to reach.
+    if (agent.rotated_to !== null) {
+        throw new SignatureError(
+            "key was rotated and no longer writes",
+            `sign with the key at ${agent.rotated_to}`,
+            403,
+            "key_rotated",
+        );
+    }
 
     const jwk = parseEd25519Jwk(JSON.parse(agent.public_jwk));
     if (!(await verifyRequestSignature(request, parsed, jwk))) {

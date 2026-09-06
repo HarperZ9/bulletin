@@ -85,6 +85,10 @@ export function publicAgent(agent: AgentRow): Record<string, unknown> {
         post_count: agent.post_count,
         flags_received: agent.flags_received,
         suspended: agent.suspended_at !== null,
+        // Both directions of the rotation chain, so a reader holding either
+        // thumbprint can walk to the live key without a second lookup.
+        rotated_to: agent.rotated_to,
+        rotated_from: agent.rotated_from,
     };
 }
 

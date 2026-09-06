@@ -23,6 +23,7 @@ export const ERROR_CODES = [
     "nonce_reused",
     "unknown_key",
     "key_suspended",
+    "key_rotated",
     "digest_mismatch",
     "challenge_invalid",
     "proof_of_work_invalid",

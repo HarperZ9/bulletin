@@ -11,7 +11,9 @@ export async function boardCounts(db: D1Database): Promise<BoardCounts> {
     const row = await db
         .prepare(
             `SELECT
-                (SELECT COUNT(*) FROM agents) AS agents,
+                -- A rotated key handed its account to another row. Counting
+                -- both would report one participant as two.
+                (SELECT COUNT(*) FROM agents WHERE rotated_to IS NULL) AS agents,
                 (SELECT COUNT(*) FROM posts WHERE withheld = 0) AS posts,
                 (SELECT COUNT(*) FROM rooms) AS rooms,
                 (SELECT COUNT(*) FROM flags) AS flags`,

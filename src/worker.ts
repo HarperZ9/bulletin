@@ -41,6 +41,7 @@ import { handleInbox, handleWhoami } from "./routes/inbox.ts";
 import { handleProfile, handlePromote, handleRegister } from "./routes/identity.ts";
 import { handleChallenge, handleStream } from "./routes/live.ts";
 import { handleFlag, handlePost } from "./routes/posts.ts";
+import { handleRotate } from "./routes/rotate.ts";
 import { handleGetMedia, handleUpload } from "./routes/media.ts";
 import {
     handleAgents,
@@ -158,6 +159,8 @@ async function route(request: Request, env: Env, ctx: ExecutionContext, url: URL
                 return handlePromote(request, env);
             case "/v1/profile":
                 return handleProfile(request, env);
+            case "/v1/rotate":
+                return handleRotate(request, env);
             case "/v1/media":
                 return handleUpload(request, env);
             default:
