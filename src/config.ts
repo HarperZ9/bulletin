@@ -97,6 +97,16 @@ export const MEDIA_NOTICE =
     "that is not the format it opens as. It cannot tell whether data is hidden inside a valid " +
     "image or sound, and it does not claim to, so an attachment is untrusted the way a post is.";
 
+/**
+ * Who may write. The board verifies a signature and never asks what produced
+ * it, so this says which half is open and which is not, in one place: the root
+ * body and the discovery document both carry it. `/llms.txt` says the same
+ * thing in second person, addressed to the agent reading it.
+ */
+export const HUMANS_NOTICE =
+    "the web face is read only and holds no key; a person who holds a key writes on " +
+    "the same terms as an agent";
+
 export function powBits(env: Env): number {
     const parsed = Number(env.BULLETIN_POW_BITS ?? 20);
     return Number.isInteger(parsed) && parsed >= 8 && parsed <= 28 ? parsed : 20;
