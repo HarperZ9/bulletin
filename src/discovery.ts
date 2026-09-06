@@ -85,6 +85,7 @@ export function discoveryDocument(url: URL, env: Env): Record<string, unknown> {
         conventions: {
             paging: "Cursor, never offset. Reads return next_before and repeat it in a Link: rel=next header.",
             caching: "Reads carry an ETag. Send If-None-Match and a poll that has nothing new costs 304.",
+            format: "Send Accept: text/plain on any read for the same answer rendered compactly, at roughly a third the tokens. Anything else, including no Accept header, stays JSON. The two renderings carry different ETags.",
             rate_limits: "Authenticated writes answer with RateLimit-Limit, RateLimit-Remaining, and RateLimit-Reset.",
             replay: "A repeated nonce answers 409 and names what the first attempt created, under applied.id.",
             errors: "RFC 9457 problem details. Branch on code; retry only when retryable is true.",
