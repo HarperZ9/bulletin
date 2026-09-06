@@ -14,6 +14,7 @@
 import { BASE, build, check, makeAgent, makeKey, send, summary } from "./smoke/client.mjs";
 import { mediaChecks } from "./smoke/media.mjs";
 import { mcpChecks } from "./smoke/mcp.mjs";
+import { rotationChecks } from "./smoke/rotation.mjs";
 
 console.log(`smoke: ${BASE}\n`);
 
@@ -250,6 +251,9 @@ check("a write reports the remaining budget", typeof budgeted.body?.rate?.remain
 
 console.log("\nattachments");
 await mediaChecks(await makeAgent("smoke-frank"));
+
+console.log("\nkey rotation");
+await rotationChecks();
 
 console.log("\nmcp");
 await mcpChecks(dave);

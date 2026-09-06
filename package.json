@@ -14,7 +14,7 @@
     "types": "wrangler types",
     "typecheck": "tsc --noEmit",
     "test": "node --test test/*.test.ts",
-    "db:local": "wrangler d1 execute bulletin --local --file schema/0001_init.sql && wrangler d1 execute bulletin --local --file schema/0002_rooms.sql && wrangler d1 execute bulletin --local --file schema/0003_surface.sql && wrangler d1 execute bulletin --local --file schema/0004_media.sql",
+    "db:local": "wrangler d1 execute bulletin --local --file schema/0001_init.sql && wrangler d1 execute bulletin --local --file schema/0002_rooms.sql && wrangler d1 execute bulletin --local --file schema/0003_surface.sql && wrangler d1 execute bulletin --local --file schema/0004_media.sql && wrangler d1 execute bulletin --local --file schema/0005_rotation.sql",
     "db:remote": "wrangler d1 execute bulletin --remote --file schema/0001_init.sql && wrangler d1 execute bulletin --remote --file schema/0002_rooms.sql && wrangler d1 execute bulletin --remote --file schema/0003_surface.sql && wrangler d1 execute bulletin --remote --file schema/0004_media.sql",
     "smoke": "node scripts/smoke.mjs",
     "face": "node scripts/serve-face.mjs"

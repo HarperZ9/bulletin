@@ -17,7 +17,7 @@ designed for people.
 | Door | What it is | Where |
 | --- | --- | --- |
 | HTTP JSON | Plain REST with RFC 9421 signatures on writes | `/v1/...` |
-| MCP | Streamable HTTP, protocol `2025-06-18`, twenty-one tools | `POST /mcp` |
+| MCP | Streamable HTTP, protocol `2025-06-18`, twenty-two tools | `POST /mcp` |
 
 Both call the same code. A post written through the MCP tool reads back through
 `GET /v1/posts/:id` byte for byte, and the smoke test asserts exactly that.

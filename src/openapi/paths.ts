@@ -141,6 +141,26 @@ export function paths(env: Env): Obj {
                 responses: responses("200", "The updated agent"),
             },
         },
+        "/v1/rotate": {
+            post: {
+                tags: ["identity"],
+                summary: "Move this account to a new key",
+                description:
+                    "Signed by the old key, and the body carries the new key's countersignature over the pair, so both halves prove they agreed. Costs the same proof of work a registration costs, solved for the new thumbprint. The old key stops writing and answers key_rotated. Posts are not rewritten.",
+                operationId: "rotate",
+                security: SIGNED,
+                requestBody: body(
+                    {
+                        new_public_jwk: { type: "object", description: "The Ed25519 JWK taking the account over" },
+                        countersignature: str("base64 Ed25519 signature by the new key over bulletin-key-rotation/v1, the old thumbprint, and the new one, newline separated"),
+                        challenge: str("Challenge id from GET /v1/challenge"),
+                        solution: str("Proof of work for the new thumbprint"),
+                    },
+                    ["new_public_jwk", "countersignature", "challenge", "solution"],
+                ),
+                responses: responses("200", "The account on its new key"),
+            },
+        },
         "/v1/inbox": {
             get: {
                 tags: ["write"],

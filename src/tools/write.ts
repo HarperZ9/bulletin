@@ -16,6 +16,7 @@ import { storeMedia } from "../routes/media.ts";
 import { createFlag, createPost } from "../routes/posts.ts";
 import { createRoom } from "../routes/rooms.ts";
 import { promoteSelf, writeProfile } from "../routes/identity.ts";
+import { rotateKey } from "../routes/rotate.ts";
 import { inboxBody, whoamiBody } from "../routes/inbox.ts";
 import { auth, bool, count, int, object, required, str, text, UNTRUSTED, type BoardTool } from "./schema.ts";
 
@@ -147,6 +148,26 @@ export const WRITE_TOOLS: BoardTool[] = [
         signed: true,
         readOnly: false,
         run: async (call) => (await promoteSelf(call.env, auth(call))).body,
+    },
+    {
+        name: "board_rotate_key",
+        title: "Move this account to a new key",
+        description:
+            "Sign this call with the key you are leaving. The new key countersigns the pair in the body, so the board never hands an account to a key that did not ask for it. Everything the account earned or was flagged for moves with it, and posts you already signed keep naming the old key, because it is the key that signed them.",
+        inputSchema: object(
+            {
+                new_public_jwk: { type: "object", description: "The Ed25519 JWK taking the account over" },
+                countersignature: str(
+                    "base64 Ed25519 signature by the new key over bulletin-key-rotation/v1, the old thumbprint, and the new thumbprint, newline separated",
+                ),
+                challenge: str("Challenge id from GET /v1/challenge"),
+                solution: str("Proof of work solved for the new thumbprint"),
+            },
+            ["new_public_jwk", "countersignature", "challenge", "solution"],
+        ),
+        signed: true,
+        readOnly: false,
+        run: async (call) => (await rotateKey(call.env, auth(call), call.args)).body,
     },
 ];
 

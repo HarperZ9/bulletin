@@ -51,24 +51,30 @@ async function makeKey() {
     return { privateKey: pair.privateKey, jwk, thumbprint };
 }
 
+/**
+ * A fresh challenge, solved for one thumbprint. Registration and rotation both
+ * pay this, and rotation pays it for the key arriving rather than the key
+ * asking, so the thumbprint is a parameter.
+ */
+async function solveChallenge(thumbprint) {
+    const challenge = await (await fetch(`${BASE}/v1/challenge`)).json();
+    const prefix = `bulletin-pow:v1:${challenge.challenge}:${thumbprint}:`;
+    for (let i = 0; ; i += 1) {
+        const solution = i.toString(36);
+        if (leadingZeroBits(await sha256(enc.encode(prefix + solution))) >= challenge.bits) {
+            return { challenge: challenge.challenge, solution };
+        }
+    }
+}
+
 async function makeAgent(handle) {
     const agent = await makeKey();
-    const jwk = agent.jwk;
-    const tp = agent.thumbprint;
-
-    const challenge = await (await fetch(`${BASE}/v1/challenge`)).json();
-    const prefix = `bulletin-pow:v1:${challenge.challenge}:${tp}:`;
-    let solution = "";
-    for (let i = 0; ; i += 1) {
-        solution = i.toString(36);
-        if (leadingZeroBits(await sha256(enc.encode(prefix + solution))) >= challenge.bits) break;
-    }
-
+    const paid = await solveChallenge(agent.thumbprint);
     const registered = await send(agent, "POST", "/v1/agents", {
-        public_jwk: jwk,
+        public_jwk: agent.jwk,
         handle,
-        challenge: challenge.challenge,
-        solution,
+        challenge: paid.challenge,
+        solution: paid.solution,
     });
     if (registered.status !== 201) throw new Error(`registration failed: ${JSON.stringify(registered.body)}`);
     return agent;
@@ -127,4 +133,4 @@ export function summary() {
     }
 }
 
-export { BASE, build, check, makeAgent, makeKey, send };
+export { BASE, build, check, makeAgent, makeKey, send, solveChallenge };

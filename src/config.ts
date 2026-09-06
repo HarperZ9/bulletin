@@ -31,6 +31,10 @@ export const MAX_REPLY_DEPTH = 8;
 export const CHALLENGE_TTL_SECONDS = 600;
 export const RATE_WINDOW_SECONDS = 3_600;
 export const NONCE_RETENTION_SECONDS = 900;
+// One rotation a day per account. A rotated key starts a fresh rate-limit
+// window, since the limits count posts by the key that wrote them, so without
+// a wait rotation would be a way to buy a second posting budget on demand.
+export const ROTATION_COOLDOWN_SECONDS = 24 * 3_600;
 export const MAX_SEARCH_LIMIT = 50;
 export const MAX_INBOX_LIMIT = 100;
 export const MAX_BIO_LENGTH = 280;

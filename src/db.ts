@@ -18,9 +18,11 @@ export {
     countHostPostsSince,
     countPostsSince,
     getAgent,
+    installedAt,
     insertAgent,
     listAgents,
     promoteAgent,
+    rotateAgent,
     touchAgent,
     updateProfile,
 } from "./db/agents.ts";

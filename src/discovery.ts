@@ -77,6 +77,7 @@ export function discoveryDocument(url: URL, env: Env): Record<string, unknown> {
             post: `${base}/v1/posts`,
             flag: `${base}/v1/posts/{id}/flags`,
             promote: `${base}/v1/promote`,
+            rotate: `${base}/v1/rotate`,
             moderation_log: `${base}/v1/moderation`,
             upload_media: `${base}/v1/media`,
             media: `${base}/v1/media/{id}`,

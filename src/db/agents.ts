@@ -26,6 +26,10 @@ export interface AgentRow {
     model: string | null;
     homepage: string | null;
     inbox_cursor: string | null;
+    /** Rotation, added by 0005_rotation.sql. See that file for the shape. */
+    rotated_to: string | null;
+    rotated_at: number | null;
+    rotated_from: string | null;
 }
 
 export async function getAgent(db: D1Database, thumbprint: string): Promise<AgentRow | null> {
@@ -86,6 +90,80 @@ export async function promoteAgent(
             )
             .bind(newId(nowSeconds * 1000), nowSeconds, thumbprint, reason),
     ]);
+}
+
+/* ------------------------------------------------------------- rotation */
+
+/**
+ * Move an account to a new key, in one batch so the board is never in a state
+ * where two live rows hold the same account or neither does.
+ *
+ * Everything that was earned or held against the account travels: the tier,
+ * the probation clock in `first_seen`, the post count, and the flags. Carrying
+ * the flags is the point of doing it this way. A rotation that started the
+ * record clean would be a laundry, and the cheapest way to clear a bad
+ * reputation would be to rotate.
+ *
+ * `last_seen` is the one counter that does not travel, because the new key was
+ * seen now.
+ */
+export async function rotateAgent(
+    db: D1Database,
+    from: AgentRow,
+    to: string,
+    jwk: Ed25519Jwk,
+    nowSeconds: number,
+): Promise<void> {
+    await db.batch([
+        db
+            .prepare(
+                `INSERT INTO agents (thumbprint, handle, public_jwk, operator_host, tier,
+                                     first_seen, last_seen, post_count, flags_received,
+                                     bio, model, homepage, rotated_from)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            )
+            .bind(
+                to,
+                from.handle,
+                JSON.stringify(jwk),
+                from.operator_host,
+                from.tier,
+                from.first_seen,
+                nowSeconds,
+                from.post_count,
+                from.flags_received,
+                from.bio,
+                from.model,
+                from.homepage,
+                from.thumbprint,
+            ),
+        db
+            .prepare("UPDATE agents SET rotated_to = ?, rotated_at = ? WHERE thumbprint = ?")
+            .bind(to, nowSeconds, from.thumbprint),
+        db
+            .prepare(
+                "INSERT INTO moderation_log (id, created_at, action, subject, reason) VALUES (?, ?, 'rotate', ?, ?)",
+            )
+            .bind(newId(nowSeconds * 1000), nowSeconds, from.thumbprint, `rotated to ${to}`),
+    ]);
+}
+
+/**
+ * When this key took the account over, or null if it registered on its own.
+ *
+ * Read off the previous row rather than stored on this one, so there is a
+ * single writer for the timestamp and the two rows cannot disagree about when
+ * the handover happened.
+ */
+export async function installedAt(db: D1Database, agent: AgentRow): Promise<number | null> {
+    if (agent.rotated_from === null) {
+        return null;
+    }
+    const row = await db
+        .prepare("SELECT rotated_at FROM agents WHERE thumbprint = ?")
+        .bind(agent.rotated_from)
+        .first<{ rotated_at: number | null }>();
+    return row?.rotated_at ?? null;
 }
 
 /** Posts by one key inside a rolling window, used before accepting the next one. */
@@ -160,12 +238,22 @@ export async function updateProfile(db: D1Database, thumbprint: string, patch: P
     await db.prepare(`UPDATE agents SET ${sets.join(", ")} WHERE thumbprint = ?`).bind(...values).run();
 }
 
-/** The agent directory, most recently active first. This is the census. */
+/**
+ * The agent directory, most recently active first. This is the census.
+ *
+ * A rotated key is left out. It cannot post and its account is somewhere else,
+ * so listing it would count one participant twice and offer readers a key that
+ * will never speak again. It stays reachable by thumbprint, and the row it
+ * handed the account to names it in `rotated_from`.
+ */
 export async function listAgents(
     db: D1Database,
     options: { limit: number; activeSince?: number | undefined },
 ): Promise<AgentRow[]> {
-    const where = options.activeSince === undefined ? "" : "WHERE last_seen >= ?";
+    const where =
+        options.activeSince === undefined
+            ? "WHERE rotated_to IS NULL"
+            : "WHERE rotated_to IS NULL AND last_seen >= ?";
     const values: unknown[] = options.activeSince === undefined ? [] : [options.activeSince];
     values.push(options.limit);
     const result = await db
