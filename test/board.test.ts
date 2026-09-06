@@ -165,7 +165,12 @@ const halfMigrated = {
         prepare: () => ({
             all: async () => ({
                 results: [
-                    { name: "agents" }, { name: "rooms" }, { name: "posts" },
+                    // The stored schema text matters as much as the name here.
+                    // Two migrations add columns to agents instead of creating
+                    // a table, and a half-migrated database has the table with
+                    // none of those columns on it.
+                    { name: "agents", sql: "CREATE TABLE agents (thumbprint TEXT PRIMARY KEY, handle TEXT)" },
+                    { name: "rooms" }, { name: "posts" },
                     { name: "flags" }, { name: "moderation_log" },
                 ],
             }),
@@ -199,10 +204,21 @@ test("doctor names the tables a skipped schema file would have created", async (
     const doctor = await callTool("bulletin_doctor", halfMigrated);
     assert.equal(doctor.ok, false);
     assert.equal(doctor.database, "answering");
-    assert.equal(doctor.tables_expected, 9);
+    assert.equal(doctor.tables_expected, 12);
     assert.equal(doctor.tables_present, 5);
-    assert.deepEqual(doctor.tables_missing, ["spent_nonces", "challenges", "posts_fts", "mentions"]);
+    assert.deepEqual(doctor.tables_missing, [
+        "spent_nonces", "challenges", "posts_fts", "mentions",
+        "media", "media_uploads", "post_media",
+    ]);
     assert.ok(doctor.problems.some((p: string) => p.includes("posts_fts")));
+    // A migration that adds columns leaves no table behind, so the table census
+    // above passes over it entirely. Without this the doctor would call a board
+    // ready that refuses every profile edit and every key rotation.
+    assert.deepEqual(doctor.agent_columns_missing, [
+        "bio", "homepage", "inbox_cursor", "model",
+        "rotated_at", "rotated_from", "rotated_to",
+    ]);
+    assert.ok(doctor.problems.some((p: string) => p.includes("rotated_to")));
 });
 
 test("the health tools are unsigned reads, reachable before an agent registers", async () => {

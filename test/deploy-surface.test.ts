@@ -1,11 +1,17 @@
 /**
- * Two things a deploy can get wrong that no other test here would notice.
+ * Things a deploy can get wrong that no other test here would notice.
  *
  * The first is the migration list. `db:local` and `db:remote` are two hand
  * written strings naming the same schema files, and the remote one was missing
- * `0005_rotation.sql` while the code that needs that table was already merged.
- * A board brought up from the remote list would have answered every rotation
- * request with a database error.
+ * `0005_rotation.sql` while the code that needs it was already merged. That
+ * migration adds columns to `agents` rather than creating a table of its own,
+ * so a board brought up from the remote list would have had every table anyone
+ * looked for and failed every rotation request on a column that is not there.
+ *
+ * That is also why the doctor's expectations are checked against the schema
+ * directory below. A census of table names cannot see a migration that adds no
+ * table, and the table list itself had gone stale at nine while the schema grew
+ * to twelve, so a board with no media tables reported itself ready to serve.
  *
  * The second is the version. Four feature pull requests landed on top of 0.2.0
  * without moving it, so the contract reported the same number for a board that
@@ -27,6 +33,7 @@ import { SERVICE_VERSION, type Env } from "../src/config.ts";
 import { discoveryDocument } from "../src/discovery.ts";
 import { openApiDocument } from "../src/openapi.ts";
 import { listTools } from "../src/tools.ts";
+import { EXPECTED_AGENT_COLUMNS, EXPECTED_TABLES } from "../src/tools/health.ts";
 
 const ROOT = new URL("../", import.meta.url);
 
@@ -103,6 +110,50 @@ test("the advertised surface still hashes to the reviewed pin", () => {
         REVIEWED_SURFACE_SHA256,
         `the advertised surface moved while the version reads ${SERVICE_VERSION}; `
             + "bump SERVICE_VERSION and package.json, then re-pin REVIEWED_SURFACE_SHA256",
+    );
+});
+
+/** Every schema file, concatenated, so a statement is found wherever it lives. */
+function allSchemaSql(): string {
+    return readdirSync(new URL("schema/", ROOT))
+        .filter((name) => name.endsWith(".sql"))
+        .sort()
+        .map((name) => readFileSync(new URL(`schema/${name}`, ROOT), "utf-8"))
+        .join("\n");
+}
+
+test("the doctor looks for every table the schema creates", () => {
+    // The doctor cannot read the filesystem at runtime, so its list is written
+    // by hand and drifts silently. It had drifted: nine names against twelve
+    // tables, which made a board with no media storage report itself ready.
+    const sql = allSchemaSql();
+    const created = [
+        ...sql.matchAll(/CREATE\s+(?:VIRTUAL\s+)?TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?([a-z_]+)/gi),
+    ]
+        .map((match) => match[1])
+        .filter((name): name is string => Boolean(name));
+    assert.ok(created.length > 0, "no CREATE TABLE statement was found to check against");
+    assert.deepEqual(
+        [...EXPECTED_TABLES].sort(),
+        [...new Set(created)].sort(),
+        "bulletin_doctor's table list does not match the tables schema/ creates",
+    );
+});
+
+test("the doctor looks for every column a migration adds to agents", () => {
+    // A migration that adds no table is invisible to a table census, which is
+    // how the rotation columns could have been missing on a board the doctor
+    // called ready.
+    const added = [
+        ...allSchemaSql().matchAll(/ALTER\s+TABLE\s+agents\s+ADD\s+COLUMN\s+([a-z_]+)/gi),
+    ]
+        .map((match) => match[1])
+        .filter((name): name is string => Boolean(name));
+    assert.ok(added.length > 0, "no ALTER TABLE agents statement was found to check against");
+    assert.deepEqual(
+        [...EXPECTED_AGENT_COLUMNS].sort(),
+        [...new Set(added)].sort(),
+        "bulletin_doctor's agents column list does not match what the migrations add",
     );
 });
 
