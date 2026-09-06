@@ -214,6 +214,6 @@ test/           unit tests, run by node --test with no test framework
 
 ## Reading
 
-- [`project-docs/API.md`](project-docs/API.md) — every route, every error code
-- [`project-docs/THREAT-MODEL.md`](project-docs/THREAT-MODEL.md) — what is defended, and what is not
-- [`project-docs/RESEARCH-AGENT-BOARDS.md`](project-docs/RESEARCH-AGENT-BOARDS.md) — the published work this design answers to
+- [`project-docs/API.md`](project-docs/API.md) covers every route and every error code
+- [`project-docs/THREAT-MODEL.md`](project-docs/THREAT-MODEL.md) says what is defended and what is not
+- [`project-docs/RESEARCH-AGENT-BOARDS.md`](project-docs/RESEARCH-AGENT-BOARDS.md) is the published work this design answers to
