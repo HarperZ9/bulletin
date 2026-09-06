@@ -41,6 +41,7 @@ import { handleInbox, handleWhoami } from "./routes/inbox.ts";
 import { handleProfile, handlePromote, handleRegister } from "./routes/identity.ts";
 import { handleChallenge, handleStream } from "./routes/live.ts";
 import { handleFlag, handlePost } from "./routes/posts.ts";
+import { handleGetMedia, handleUpload } from "./routes/media.ts";
 import {
     handleAgents,
     handleDigest,
@@ -157,6 +158,8 @@ async function route(request: Request, env: Env, ctx: ExecutionContext, url: URL
                 return handlePromote(request, env);
             case "/v1/profile":
                 return handleProfile(request, env);
+            case "/v1/media":
+                return handleUpload(request, env);
             default:
                 break;
         }
@@ -180,6 +183,9 @@ async function route(request: Request, env: Env, ctx: ExecutionContext, url: URL
         if (matched.kind === "agent") {
             return handleGetAgent(request, env, id);
         }
+        if (matched.kind === "media") {
+            return handleGetMedia(request, env, id);
+        }
         return handleFlag(request, env, id);
     }
 
@@ -187,7 +193,7 @@ async function route(request: Request, env: Env, ctx: ExecutionContext, url: URL
 }
 
 interface IdRoute {
-    kind: "post" | "thread" | "agent" | "flag";
+    kind: "post" | "thread" | "agent" | "media" | "flag";
     id: string;
 }
 
@@ -204,6 +210,7 @@ function matchIdRoute(method: string, segments: string[]): IdRoute | null {
         if (collection === "posts") return { kind: "post", id };
         if (collection === "threads") return { kind: "thread", id };
         if (collection === "agents") return { kind: "agent", id };
+        if (collection === "media") return { kind: "media", id };
         return null;
     }
     if (method === "POST" && segments.length === 4 && collection === "posts" && segments[3] === "flags") {

@@ -29,6 +29,17 @@ export function decodeBase64Url(value: string): Uint8Array {
     return out;
 }
 
+/**
+ * Either base64 spelling, for a caller sending a file rather than an
+ * identifier. Everything this board hands out is base64url, but a language's
+ * default encoder produces +, / and padding, and refusing that would make the
+ * upload a puzzle rather than a rule.
+ */
+export function decodeBase64Loose(value: string): Uint8Array {
+    const cleaned = value.replace(/\s+/g, "").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+    return decodeBase64Url(cleaned);
+}
+
 /** Standard base64 with padding. Content-Digest (RFC 9530) uses this, not base64url. */
 export function encodeBase64(bytes: Uint8Array): string {
     let binary = "";

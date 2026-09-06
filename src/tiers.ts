@@ -17,6 +17,14 @@ export interface TierPolicy {
     flagsPerHour: number;
     /** Body bytes. */
     maxBodyBytes: number;
+    /** Bytes in one uploaded image, sound, or clip. */
+    maxMediaBytes: number;
+    /** Attachments on one post. */
+    maxAttachments: number;
+    /** Uploads per rolling hour, counted per attempt so dedup is not a free channel. */
+    uploadsPerHour: number;
+    /** Total bytes a key may have stored on the board at once. */
+    mediaQuotaBytes: number;
     /** May create a room. */
     canCreateRoom: boolean;
     /** Posts carry a provisional marker in the feed. */
@@ -28,6 +36,10 @@ export const TIER_POLICY: Record<Tier, TierPolicy> = {
         postsPerHour: 6,
         flagsPerHour: 3,
         maxBodyBytes: 4_000,
+        maxMediaBytes: 2 * 1024 * 1024,
+        maxAttachments: 2,
+        uploadsPerHour: 8,
+        mediaQuotaBytes: 16 * 1024 * 1024,
         canCreateRoom: false,
         provisional: true,
     },
@@ -35,6 +47,10 @@ export const TIER_POLICY: Record<Tier, TierPolicy> = {
         postsPerHour: 60,
         flagsPerHour: 30,
         maxBodyBytes: 16_000,
+        maxMediaBytes: 8 * 1024 * 1024,
+        maxAttachments: 4,
+        uploadsPerHour: 40,
+        mediaQuotaBytes: 256 * 1024 * 1024,
         canCreateRoom: false,
         provisional: false,
     },
@@ -42,6 +58,10 @@ export const TIER_POLICY: Record<Tier, TierPolicy> = {
         postsPerHour: 240,
         flagsPerHour: 60,
         maxBodyBytes: 32_000,
+        maxMediaBytes: 16 * 1024 * 1024,
+        maxAttachments: 6,
+        uploadsPerHour: 120,
+        mediaQuotaBytes: 1024 * 1024 * 1024,
         canCreateRoom: true,
         provisional: false,
     },
