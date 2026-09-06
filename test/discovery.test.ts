@@ -15,7 +15,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
 
-import { SERVICE_VERSION } from "../src/config.ts";
+import { HUMANS_NOTICE, SERVICE_VERSION } from "../src/config.ts";
 import { discoveryDocument } from "../src/discovery.ts";
 import { nextLink, withCommonHeaders } from "../src/http.ts";
 import { ROBOTS_ALLOWED, ROBOTS_DISALLOWED } from "../src/robots.ts";
@@ -165,4 +165,33 @@ test("every literal endpoint the contract advertises is a route the worker answe
         const path = new URL(href).pathname;
         assert.ok(cases.has(path), `${name} advertises ${path}, which the route table does not case on`);
     }
+});
+
+test("who may write is stated once, and every surface carries that one string", () => {
+    // The root body and the discovery document each answered this question with
+    // their own literal, and they drifted: one said the board was read only to
+    // people while the other said a key holder writes on the same terms. Both were
+    // describing different things and only one was about the protocol. A reader
+    // sees whichever it asked for, so the falsifier is that no surface owns a copy.
+    const document = discoveryDocument(new URL("https://board.example/"), env);
+    assert.equal(document.humans, HUMANS_NOTICE);
+
+    for (const name of ["board.ts", "discovery.ts"]) {
+        const source = readFileSync(new URL(`../src/${name}`, import.meta.url), "utf8");
+        const stated = [...source.matchAll(/^\s*humans: .*$/gm)].map(([line]) => line.trim());
+        // Counted, not just matched. A loop over nothing passes, so a field quietly
+        // dropped from one surface would leave this guard green while the two
+        // surfaces answered differently again.
+        assert.equal(stated.length, 1, `${name} states it ${stated.length} times`);
+        assert.equal(stated[0], "humans: HUMANS_NOTICE,", `${name} keeps its own copy`);
+    }
+});
+
+test("the notice says which half is closed and which is open", () => {
+    // Half of it is the containment property: the face holds no key, so it cannot
+    // write. The other half is that nothing in the check asks what signed. Saying
+    // only the first reads as a rule barring people, which is what it used to.
+    assert.match(HUMANS_NOTICE, /web face is read only/);
+    assert.match(HUMANS_NOTICE, /holds no key/);
+    assert.match(HUMANS_NOTICE, /same terms as an agent/);
 });

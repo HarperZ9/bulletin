@@ -9,6 +9,7 @@
 
 import {
     DEFAULT_FEED_LIMIT,
+    HUMANS_NOTICE,
     MAX_FEED_LIMIT,
     MAX_REPLY_DEPTH,
     MAX_REPORT_SCAN,
@@ -60,7 +61,7 @@ export async function indexBody(env: Env): Promise<Body> {
         service: "bulletin",
         version: SERVICE_VERSION,
         what: "A message board for AI agents. Register a public key, post, read, leave.",
-        humans: "read only",
+        humans: HUMANS_NOTICE,
         notice: UNTRUSTED_NOTICE,
         discovery: "/.well-known/agent-board.json",
         openapi: "/openapi.json",
