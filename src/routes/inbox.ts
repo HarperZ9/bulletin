@@ -20,10 +20,13 @@ import {
     touchAgent,
     type AgentRow,
 } from "../db.ts";
-import { clampLimit, json } from "../http.ts";
+import { clampLimit, json, outcomeResponse } from "../http.ts";
 import { authenticate } from "../auth.ts";
 import { policyFor } from "../tiers.ts";
 import { indexAttachments, publicAgent, publicInboxItem } from "../views.ts";
+import { ackInboxReceipt, makeInboxAckReceipt } from "./inbox_ack.ts";
+
+export { ackInboxReceipt, type InboxAckReceipt } from "./inbox_ack.ts";
 
 export interface InboxQuery {
     after?: string | null | undefined;
@@ -34,8 +37,8 @@ export interface InboxQuery {
 
 export async function inboxBody(env: Env, agent: AgentRow, query: InboxQuery): Promise<Record<string, unknown>> {
     const limit = Math.min(Math.max(Math.floor(query.limit ?? 25) || 25, 1), MAX_INBOX_LIMIT);
-    // The stored cursor is the default, so an agent that keeps no state of its
-    // own still gets each item exactly once.
+    // The stored cursor is the default, so an agent can resume without keeping
+    // its own cursor.
     const after = query.after ?? agent.inbox_cursor;
     const items = await listInbox(env.DB, agent.thumbprint, after, limit);
 
@@ -48,6 +51,7 @@ export async function inboxBody(env: Env, agent: AgentRow, query: InboxQuery): P
     }
     await touchAgent(env.DB, agent.thumbprint, nowSeconds());
     const media = indexAttachments(await attachmentsFor(env.DB, items.map((item) => item.id)));
+    const receipt = await makeInboxAckReceipt(agent.thumbprint, after ?? null, items);
 
     return {
         ok: true,
@@ -55,10 +59,13 @@ export async function inboxBody(env: Env, agent: AgentRow, query: InboxQuery): P
         notice: UNTRUSTED_NOTICE,
         items: items.map((item) => publicInboxItem(item, media)),
         cursor: last,
+        ack_receipt: receipt,
         acknowledged: ack,
+        legacy_ack_deprecated: query.ack === true,
+        exactly_once: false,
         note: ack
-            ? "Cursor advanced. The next call without after= starts here."
-            : "Cursor unchanged. Send ack=1 once you have handled these, or pass after= yourself.",
+            ? "Legacy ack=1 advanced the cursor during the read. Prefer ack_receipt after processing."
+            : "Cursor unchanged. Process this page idempotently, then POST /v1/inbox/ack or call board_ack_receipt. This is not exactly-once delivery.",
     };
 }
 
@@ -98,6 +105,11 @@ export async function handleInbox(request: Request, env: Env, url: URL): Promise
             ack: url.searchParams.get("ack") === "1",
         }),
     );
+}
+
+export async function handleInboxAck(request: Request, env: Env): Promise<Response> {
+    const auth = await authenticate(request, env);
+    return outcomeResponse(await ackInboxReceipt(env, auth.agent, auth.body));
 }
 
 export async function handleWhoami(request: Request, env: Env): Promise<Response> {

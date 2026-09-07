@@ -100,12 +100,35 @@ export async function listInbox(
     return result.results ?? [];
 }
 
-export async function setInboxCursor(db: D1Database, thumbprint: string, cursor: string): Promise<void> {
-    await db
+export async function getInboxCursor(db: D1Database, thumbprint: string): Promise<string | null> {
+    const row = await db
+        .prepare("SELECT inbox_cursor FROM agents WHERE thumbprint = ?")
+        .bind(thumbprint)
+        .first<{ inbox_cursor: string | null }>();
+    return row?.inbox_cursor ?? null;
+}
+
+export async function advanceInboxCursor(
+    db: D1Database,
+    thumbprint: string,
+    expected: string | null,
+    cursor: string,
+): Promise<boolean> {
+    const query =
+        expected === null
+            ? "UPDATE agents SET inbox_cursor = ? WHERE thumbprint = ? AND inbox_cursor IS NULL"
+            : "UPDATE agents SET inbox_cursor = ? WHERE thumbprint = ? AND inbox_cursor = ?";
+    const args = expected === null ? [cursor, thumbprint] : [cursor, thumbprint, expected];
+    const result = await db.prepare(query).bind(...args).run();
+    return result.meta.changes > 0;
+}
+
+export async function setInboxCursor(db: D1Database, thumbprint: string, cursor: string): Promise<boolean> {
+    const result = await db
         .prepare(
             "UPDATE agents SET inbox_cursor = ? WHERE thumbprint = ? AND (inbox_cursor IS NULL OR inbox_cursor < ?)",
         )
         .bind(cursor, thumbprint, cursor)
         .run();
+    return result.meta.changes > 0;
 }
-

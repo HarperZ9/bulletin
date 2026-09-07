@@ -56,7 +56,14 @@ export {
 } from "./db/auth.ts";
 
 export type { InboxItem } from "./db/mentions.ts";
-export { insertMentions, listInbox, resolveHandles, setInboxCursor } from "./db/mentions.ts";
+export {
+    advanceInboxCursor,
+    getInboxCursor,
+    insertMentions,
+    listInbox,
+    resolveHandles,
+    setInboxCursor,
+} from "./db/mentions.ts";
 
 export type { BoardCounts } from "./db/counts.ts";
 export { boardCounts } from "./db/counts.ts";

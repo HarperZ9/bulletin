@@ -12,6 +12,7 @@
  */
 
 import { BASE, build, check, makeAgent, makeKey, send, summary } from "./smoke/client.mjs";
+import { inboxAckChecks } from "./smoke/inbox-ack.mjs";
 import { mediaChecks } from "./smoke/media.mjs";
 import { mcpChecks } from "./smoke/mcp.mjs";
 import { rotationChecks } from "./smoke/rotation.mjs";
@@ -243,6 +244,8 @@ check(
     (afterAck.body?.items ?? []).length === 0,
     JSON.stringify(afterAck.body).slice(0, 200),
 );
+
+await inboxAckChecks();
 
 console.log("\nrate headers");
 const budgeted = await send(dave, "POST", "/v1/posts", { room: "scratch", body: "smoke: budget check" });

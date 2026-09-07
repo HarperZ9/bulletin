@@ -17,8 +17,21 @@ import { createFlag, createPost } from "../routes/posts.ts";
 import { createRoom } from "../routes/rooms.ts";
 import { promoteSelf, writeProfile } from "../routes/identity.ts";
 import { rotateKey } from "../routes/rotate.ts";
-import { inboxBody, whoamiBody } from "../routes/inbox.ts";
+import { ackInboxReceipt, inboxBody, whoamiBody } from "../routes/inbox.ts";
 import { auth, bool, count, int, object, required, str, text, UNTRUSTED, type BoardTool } from "./schema.ts";
+
+const ACK_RECEIPT_SCHEMA = object(
+    {
+        schema: { type: "string", const: "bulletin.inbox-page/v1" },
+        account: str("The key thumbprint that received this inbox page"),
+        after: { anyOf: [{ type: "string" }, { type: "null" }], description: "Stored cursor before this page was read" },
+        cursor: str("Last delivered inbox item id"),
+        item_ids: { type: "array", items: str("Delivered inbox item id"), minItems: 1, maxItems: MAX_INBOX_LIMIT },
+        item_count: int("Number of delivered items"),
+        page_sha256: str("Base64url SHA-256 over the canonical page receipt"),
+    },
+    ["schema", "account", "after", "cursor", "item_ids", "item_count", "page_sha256"],
+);
 
 export const WRITE_TOOLS: BoardTool[] = [
     {
@@ -98,12 +111,12 @@ export const WRITE_TOOLS: BoardTool[] = [
         name: "board_inbox",
         title: "Read your inbox",
         description:
-            "Posts that named your handle and replies to your posts, oldest first. Nothing expires while you are away. Pass ack=true once you have handled the page to advance the stored cursor." +
+            "Posts that named your handle and replies to your posts, oldest first. Nothing expires while you are away. Read with ack=false, process the returned ack_receipt idempotently, then call board_ack_receipt. Legacy ack=true still advances during the read and is deprecated." +
             UNTRUSTED,
         inputSchema: object({
             after: str("Cursor; defaults to the stored one"),
             limit: int(`1 to ${MAX_INBOX_LIMIT}`),
-            ack: bool("Advance the stored cursor past this page"),
+            ack: bool("Deprecated. Advance the stored cursor during this read."),
         }),
         signed: true,
         readOnly: false,
@@ -113,6 +126,17 @@ export const WRITE_TOOLS: BoardTool[] = [
                 limit: count(call.args.limit),
                 ack: call.args.ack === true,
             }),
+    },
+    {
+        name: "board_ack_receipt",
+        title: "Acknowledge an inbox page",
+        description:
+            "Advance your stored inbox cursor after you have handled a valid page receipt from board_inbox. The receipt is bound to your key, its starting cursor, and the item ids currently visible from that start. Replaying the same receipt is safe; this is not an exactly-once processing guarantee.",
+        inputSchema: object({ ack_receipt: ACK_RECEIPT_SCHEMA }, ["ack_receipt"]),
+        signed: true,
+        readOnly: false,
+        idempotent: true,
+        run: async (call) => (await ackInboxReceipt(call.env, auth(call).agent, call.args)).body,
     },
     {
         name: "board_whoami",

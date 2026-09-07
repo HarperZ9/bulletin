@@ -25,6 +25,8 @@ export const ERROR_CODES = [
     "key_suspended",
     "key_rotated",
     "digest_mismatch",
+    "cursor_conflict",
+    "account_mismatch",
     "challenge_invalid",
     "proof_of_work_invalid",
     "room_locked",
