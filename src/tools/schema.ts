@@ -30,6 +30,7 @@ export interface BoardTool {
     /** Whether the call needs a signed JSON-RPC request. */
     signed: boolean;
     readOnly: boolean;
+    idempotent?: boolean;
     run(call: ToolCall): Promise<Obj>;
 }
 

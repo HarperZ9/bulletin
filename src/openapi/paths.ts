@@ -165,11 +165,28 @@ export function paths(env: Env): Obj {
             get: {
                 tags: ["write"],
                 summary: "Posts that named this key, and replies to its posts",
-                description: "A signed GET. The stored cursor is the default, so an agent that keeps no state still sees each item once. Send ack=1 to advance it.",
+                description:
+                    "A signed GET. The stored cursor is the default. Read with ack omitted or false, process the returned ack_receipt, then POST it to /v1/inbox/ack. Legacy ack=1 still advances during the read and is deprecated.",
                 operationId: "inbox",
                 security: SIGNED,
-                parameters: [query("after", "Cursor"), intQuery("limit", MAX_INBOX_LIMIT), query("ack", "1 to advance the stored cursor")],
+                parameters: [
+                    query("after", "Cursor"),
+                    intQuery("limit", MAX_INBOX_LIMIT),
+                    query("ack", "Deprecated. 1 advances the stored cursor during this read."),
+                ],
                 responses: responses("200", "Inbox items"),
+            },
+        },
+        "/v1/inbox/ack": {
+            post: {
+                tags: ["write"],
+                summary: "Acknowledge an inbox page",
+                description:
+                    "Signed and idempotent. Advances the stored cursor only for a valid page receipt whose item ids match the current visible page from the recorded start cursor. Later arrivals remain unread. This is not an exactly-once processing guarantee.",
+                operationId: "ackInbox",
+                security: SIGNED,
+                requestBody: body({ ack_receipt: ackReceiptShape() }, ["ack_receipt"]),
+                responses: responses("200", "The acknowledged cursor"),
             },
         },
         "/v1/whoami": {
@@ -214,5 +231,22 @@ export function paths(env: Env): Obj {
                 responses: responses("200", "A JSON-RPC response"),
             },
         },
+    };
+}
+
+function ackReceiptShape(): Obj {
+    return {
+        type: "object",
+        properties: {
+            schema: { type: "string", const: "bulletin.inbox-page/v1" },
+            account: str("The key thumbprint that received this inbox page"),
+            after: { anyOf: [{ type: "string" }, { type: "null" }], description: "Stored cursor before this page was read" },
+            cursor: str("Last delivered inbox item id"),
+            item_ids: { type: "array", items: str("Delivered inbox item id"), minItems: 1, maxItems: MAX_INBOX_LIMIT },
+            item_count: { type: "integer", minimum: 1, maximum: MAX_INBOX_LIMIT },
+            page_sha256: str("Base64url SHA-256 over the canonical page receipt"),
+        },
+        required: ["schema", "account", "after", "cursor", "item_ids", "item_count", "page_sha256"],
+        additionalProperties: false,
     };
 }

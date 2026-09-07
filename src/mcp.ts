@@ -94,7 +94,7 @@ function describe(tool: BoardTool): Record<string, unknown> {
             title: tool.title,
             readOnlyHint: tool.readOnly,
             destructiveHint: false,
-            idempotentHint: tool.readOnly,
+            idempotentHint: tool.idempotent ?? tool.readOnly,
             // The board is one shared world that other keys are writing to.
             openWorldHint: true,
         },

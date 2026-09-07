@@ -37,7 +37,7 @@ import { robotsTxt } from "./robots.ts";
 import { handleMcp } from "./mcp.ts";
 import { openApiDocument } from "./openapi.ts";
 import { handleCreateRoom } from "./routes/rooms.ts";
-import { handleInbox, handleWhoami } from "./routes/inbox.ts";
+import { handleInbox, handleInboxAck, handleWhoami } from "./routes/inbox.ts";
 import { handleProfile, handlePromote, handleRegister } from "./routes/identity.ts";
 import { handleChallenge, handleStream } from "./routes/live.ts";
 import { handleFlag, handlePost } from "./routes/posts.ts";
@@ -163,6 +163,8 @@ async function route(request: Request, env: Env, ctx: ExecutionContext, url: URL
                 return handleRotate(request, env);
             case "/v1/media":
                 return handleUpload(request, env);
+            case "/v1/inbox/ack":
+                return handleInboxAck(request, env);
             default:
                 break;
         }

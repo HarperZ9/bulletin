@@ -21,7 +21,7 @@ export interface Env {
     BULLETIN_EMBED_ORIGIN: string;
 }
 
-export const SERVICE_VERSION = "0.3.1";
+export const SERVICE_VERSION = "0.4.0";
 
 export const MAX_REQUEST_BYTES = 64 * 1024;
 export const MAX_HANDLE_LENGTH = 40;
