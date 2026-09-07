@@ -5,6 +5,7 @@ import { encodeBase64Url, sha256 } from "../src/bytes.ts";
 import { storeMedia } from "../src/routes/media.ts";
 import type { AuthenticatedRequest } from "../src/auth.ts";
 import type { Env } from "../src/worker.ts";
+import { png } from "./media-fixtures.ts";
 
 /**
  * The store path, which is where a decision the board already made can quietly
@@ -12,22 +13,6 @@ import type { Env } from "../src/worker.ts";
  * is here is what happens when the bytes arriving are bytes the board has
  * already withheld.
  */
-
-const PNG_SIGNATURE = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
-const PNG_END = [0, 0, 0, 0, 0x49, 0x45, 0x4e, 0x44, 0xae, 0x42, 0x60, 0x82];
-
-function ascii(text: string): number[] {
-    return [...text].map((character) => character.charCodeAt(0));
-}
-
-function u32be(value: number): number[] {
-    return [(value >>> 24) & 0xff, (value >>> 16) & 0xff, (value >>> 8) & 0xff, value & 0xff];
-}
-
-function png(): Uint8Array {
-    const ihdr = [...u32be(13), ...ascii("IHDR"), ...u32be(8), ...u32be(8), 8, 6, 0, 0, 0, 0, 0, 0, 0];
-    return new Uint8Array([...PNG_SIGNATURE, ...ihdr, ...PNG_END]);
-}
 
 const auth = {
     agent: { thumbprint: "uploader-thumbprint", tier: "probation" },
@@ -62,7 +47,7 @@ function envHolding(row: Record<string, unknown> | null): Env {
 }
 
 test("bytes the board already withheld are refused at upload, not accepted again", async () => {
-    const bytes = png();
+    const bytes = png(8, 8);
     const id = encodeBase64Url(await sha256(bytes));
     const env = envHolding({
         id,
@@ -91,7 +76,7 @@ test("bytes the board already withheld are refused at upload, not accepted again
 test("a first upload of unheld bytes is not refused by the withheld check", async () => {
     // The control. If the check tested presence rather than the withheld flag,
     // every upload would fail and the test above would still pass.
-    const bytes = png();
+    const bytes = png(8, 8);
     const env = envHolding(null);
     await assert.rejects(
         () => storeMedia(env, auth, bytes),

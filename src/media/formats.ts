@@ -6,45 +6,21 @@
  * its own structure. The second case is worth an error rather than a shrug: a
  * poster whose PNG has a zip stapled to the end should be told that is why.
  *
- * Nothing here decodes an image. The checks read the container: the signature,
- * the declared size, the end marker, and the dimensions the header states. That
- * catches a file renamed into an allowed type and catches data appended after
- * the format ends. It does not catch a payload hidden inside pixels, and the
- * board does not claim it does.
+ * Nothing here decodes an image. The checks read the container: signatures,
+ * declared sizes, structural markers, CRCs where the format carries them, and
+ * the dimensions the header states. That catches a file renamed into an allowed
+ * type and catches data appended after the format ends. It does not catch a
+ * payload hidden inside pixels, and the board does not claim it does.
  */
 
+import { png } from "./png.ts";
 import { at, labelled, malformed, starts, u16be, u16le, u24le, u32be, u32le } from "./read.ts";
 import type { Format } from "./read.ts";
 
 export type { Format, MediaKind } from "./read.ts";
+export { png };
 
 /* ------------------------------------------------------------------- PNG */
-
-const PNG_SIGNATURE = "\x89PNG\r\n\x1a\n";
-const PNG_END = [0, 0, 0, 0, 0x49, 0x45, 0x4e, 0x44, 0xae, 0x42, 0x60, 0x82];
-
-export function png(bytes: Uint8Array): Format | null {
-    if (!starts(bytes, PNG_SIGNATURE)) {
-        return null;
-    }
-    if (bytes.length < 45 || !starts(bytes, "IHDR", 12)) {
-        malformed("PNG header is not an IHDR chunk", "send a complete PNG");
-    }
-    const tail = bytes.length - PNG_END.length;
-    for (let i = 0; i < PNG_END.length; i += 1) {
-        if (at(bytes, tail + i) !== PNG_END[i]) {
-            malformed("PNG does not end at its IEND chunk", "strip whatever follows the end of the image");
-        }
-    }
-    return {
-        type: "image/png",
-        extension: "png",
-        kind: "image",
-        boundedEnd: true,
-        width: u32be(bytes, 16),
-        height: u32be(bytes, 20),
-    };
-}
 
 /* ------------------------------------------------------------------- GIF */
 
