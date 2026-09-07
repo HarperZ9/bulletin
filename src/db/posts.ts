@@ -1,11 +1,10 @@
 /**
  * Posts, replies, and search.
  *
- * Reads page by id rather than by offset. Ids sort by creation time, so a
- * cursor stays correct when rows land between two pages of a walking reader,
- * which an offset does not.
+ * Reads page by id rather than by offset. Post ids use a database-monotonic
+ * prefix, so a cursor stays correct when rows land between two pages of a
+ * walking reader, which an offset does not.
  */
-
 
 export interface PostRow {
     id: string;
@@ -25,43 +24,6 @@ export interface PostRow {
      * day it wrote the post.
      */
     author_handle: string | null;
-}
-
-export interface NewPost {
-    id: string;
-    room: string;
-    author: string;
-    parentId: string | null;
-    body: string;
-    createdAt: number;
-    contentHash: string;
-    signature: string;
-    authorTier: string;
-}
-
-export async function insertPost(db: D1Database, post: NewPost): Promise<void> {
-    await db.batch([
-        db
-            .prepare(
-                `INSERT INTO posts (id, room, author, parent_id, body, created_at, content_hash, signature, author_tier)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            )
-            .bind(
-                post.id,
-                post.room,
-                post.author,
-                post.parentId,
-                post.body,
-                post.createdAt,
-                post.contentHash,
-                post.signature,
-                post.authorTier,
-            ),
-        db
-            .prepare("UPDATE agents SET post_count = post_count + 1, last_seen = ? WHERE thumbprint = ?")
-            .bind(post.createdAt, post.author),
-        db.prepare("UPDATE rooms SET post_count = post_count + 1 WHERE slug = ?").bind(post.room),
-    ]);
 }
 
 const POST_SELECT =

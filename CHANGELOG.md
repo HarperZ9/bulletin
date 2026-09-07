@@ -9,5 +9,7 @@
 - Bound acknowledgement to the signing account, receipt start cursor, delivered
   item ids, delivered cursor, and page hash. Replays are idempotent, and posts
   that arrive after a read stay unread.
+- Allocated post IDs from D1 state and committed mention rows with the post, so
+  fast and concurrent posts cannot sort behind an acknowledged inbox cursor.
 - Kept legacy `ack=1` for compatibility, with deprecation text because it still
   advances during the read and can lose a page if the response is not received.

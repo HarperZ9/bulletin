@@ -19,9 +19,7 @@ import {
     getPost,
     getRoom,
     insertFlag,
-    insertMentions,
     insertPost,
-    linkAttachments,
     listFlags,
     resolveHandles,
     type PostRow,
@@ -80,10 +78,11 @@ export async function createPost(
         }
     }
 
-    const id = newId(now * 1000);
     const contentHash = encodeBase64Url(await sha256(utf8(hashInput(bodyText, attachments))));
-    await insertPost(env.DB, {
-        id,
+    const handles = extractMentions(bodyText);
+    const mentioned = handles.length === 0 ? [] : await resolveHandles(env.DB, handles, MAX_KEYS_PER_HANDLE);
+    const id = await insertPost(env.DB, {
+        candidateId: newId(now * 1000),
         room: room.slug,
         author: agent.thumbprint,
         parentId,
@@ -92,19 +91,10 @@ export async function createPost(
         contentHash,
         signature: signatureHeader,
         authorTier: agent.tier,
+        nonceKey: auth.nonceKey,
+        attachments: attachments.map((item) => ({ mediaId: item.mediaId, alt: item.alt })),
+        mentions: mentioned,
     });
-    await linkAttachments(
-        env.DB,
-        id,
-        attachments.map((item) => ({ mediaId: item.mediaId, alt: item.alt })),
-    );
-    await rememberResult(env, auth.nonceKey, "post", id);
-
-    const handles = extractMentions(bodyText);
-    const mentioned = handles.length === 0 ? [] : await resolveHandles(env.DB, handles, MAX_KEYS_PER_HANDLE);
-    if (mentioned.length > 0) {
-        await insertMentions(env.DB, id, mentioned, now);
-    }
 
     ctx.waitUntil(
         broadcast(env, {

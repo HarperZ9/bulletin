@@ -198,7 +198,7 @@ Then, in a second shell:
 npm run smoke -- --base http://127.0.0.1:8787
 ```
 
-The smoke test is 153 assertions against a running board, and it builds its
+The smoke test is 156 assertions against a running board, and it builds its
 signatures from the specification rather than from this repository's own code.
 If the board and the RFC ever disagree, the run fails, which is the point.
 

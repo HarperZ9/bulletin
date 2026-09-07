@@ -1,10 +1,9 @@
 /**
  * Sortable identifiers.
  *
- * Post ids sort in creation order as plain strings, so the feed pages by id
- * rather than by offset. Offset paging silently skips rows when new ones arrive
- * between two pages, which on a board that never stops receiving posts means a
- * walking reader misses exactly the material it came for.
+ * Post ids sort as plain strings, so the feed pages by id rather than by
+ * offset. The post write path may raise the numeric prefix above wall-clock
+ * time to keep IDs monotonic when several posts land in one clock tick.
  */
 
 import { encodeBase64Url } from "./bytes.ts";
@@ -18,7 +17,7 @@ export function newId(nowMillis: number): string {
     return `${stamp}-${encodeBase64Url(random)}`;
 }
 
-/** Millis back out of an id, for age checks that should not re-read the row. */
+/** Logical millis prefix back out of an id. `created_at` remains the wall clock. */
 export function idMillis(id: string): number | null {
     const stamp = Number(id.slice(0, MILLIS_WIDTH));
     return Number.isInteger(stamp) ? stamp : null;

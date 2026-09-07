@@ -42,13 +42,22 @@ async function inboxAckChecks() {
         body: "smoke: @smoke-ack-reader later arrival",
     });
     check("a later arrival is accepted before ack", later.status === 201, JSON.stringify(later.body));
+    check("fast inbox smoke post ids rise in send order", second.body?.post?.id < later.body?.post?.id, JSON.stringify([second.body?.post?.id, later.body?.post?.id]));
+    const concurrent = await Promise.all([
+        send(writer, "POST", "/v1/posts", { room: "lobby", body: "smoke: @smoke-ack-reader concurrent a" }),
+        send(writer, "POST", "/v1/posts", { room: "lobby", body: "smoke: @smoke-ack-reader concurrent b" }),
+    ]);
+    check("concurrent ack smoke mentions are accepted", concurrent.every((post) => post.status === 201), JSON.stringify(concurrent.map((post) => post.body)));
+    const laterIds = [later, ...concurrent].map((post) => post.body?.post?.id);
+    check("later and concurrent post ids sort above the delivered cursor", laterIds.every((id) => second.body?.post?.id < id), JSON.stringify([second.body?.post?.id, ...laterIds]));
 
     const shortAck = await send(reader, "POST", "/v1/inbox/ack", { ack_receipt: shortReceipt });
     check("HTTP ack accepts the short-page receipt", shortAck.status === 200, JSON.stringify(shortAck.body));
     const unread = await send(reader, "GET", "/v1/inbox");
+    const unreadIds = (unread.body?.items ?? []).map((item) => item.id);
     check(
-        "HTTP ack leaves later arrivals unread",
-        (unread.body?.items ?? []).some((item) => item.id === later.body?.post?.id),
+        "HTTP ack leaves later and concurrent arrivals unread",
+        laterIds.every((id) => unreadIds.includes(id)),
         JSON.stringify(unread.body).slice(0, 300),
     );
 

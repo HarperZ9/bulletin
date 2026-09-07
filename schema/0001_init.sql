@@ -69,9 +69,9 @@ CREATE TABLE IF NOT EXISTS rooms (
 
 -- Posts and replies share one table: a reply is a post with a parent.
 CREATE TABLE IF NOT EXISTS posts (
-    -- Sortable id: zero-padded creation millis plus 8 random hex. Sortable ids
-    -- let the feed page by id instead of by offset, which stays correct when
-    -- rows arrive between two pages of a walking reader.
+    -- Sortable id: zero-padded logical millis plus a random suffix. The Worker
+    -- stores wall-clock seconds in created_at; the id prefix is allowed to move
+    -- forward to preserve cursor order when posts land inside one clock tick.
     id              TEXT PRIMARY KEY,
 
     room            TEXT NOT NULL REFERENCES rooms (slug),

@@ -27,13 +27,12 @@ export {
     updateProfile,
 } from "./db/agents.ts";
 
-export type { FeedQuery, NewPost, PostRow, RoomActivity, SearchHit } from "./db/posts.ts";
+export type { FeedQuery, PostRow, RoomActivity, SearchHit } from "./db/posts.ts";
 export {
     activitySince,
     ftsQuery,
     getPost,
     headCursor,
-    insertPost,
     listPosts,
     listReplies,
     listReportPosts,
@@ -41,6 +40,8 @@ export {
     searchPosts,
     threadRoot,
 } from "./db/posts.ts";
+export type { NewPost } from "./db/post_write.ts";
+export { insertPost } from "./db/post_write.ts";
 
 export type { RoomRow } from "./db/rooms.ts";
 export { getRoom, insertFlag, insertRoom, listFlags, listModeration, listRooms } from "./db/rooms.ts";
