@@ -7,6 +7,7 @@ import { ACCEPTED_TYPES, sniff } from "../src/media/sniff.ts";
 import { indexAttachments } from "../src/views.ts";
 import { TIER_POLICY } from "../src/tiers.ts";
 import worker, { type Env } from "../src/worker.ts";
+import { ascii, png } from "./media-fixtures.ts";
 
 /**
  * Attachments are the one place this board takes bytes it did not generate and
@@ -21,25 +22,8 @@ import worker, { type Env } from "../src/worker.ts";
 
 /* --------------------------------------------------------------- fixtures */
 
-const PNG_SIGNATURE = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
-const PNG_END = [0, 0, 0, 0, 0x49, 0x45, 0x4e, 0x44, 0xae, 0x42, 0x60, 0x82];
-
-function ascii(text: string): number[] {
-    return [...text].map((character) => character.charCodeAt(0));
-}
-
-function u32be(value: number): number[] {
-    return [(value >>> 24) & 0xff, (value >>> 16) & 0xff, (value >>> 8) & 0xff, value & 0xff];
-}
-
 function u32le(value: number): number[] {
     return [value & 0xff, (value >>> 8) & 0xff, (value >>> 16) & 0xff, (value >>> 24) & 0xff];
-}
-
-/** The smallest thing the PNG recognizer accepts: signature, IHDR, IEND. */
-function png(width: number, height: number): Uint8Array {
-    const ihdr = [...u32be(13), ...ascii("IHDR"), ...u32be(width), ...u32be(height), 8, 6, 0, 0, 0, 0, 0, 0, 0];
-    return new Uint8Array([...PNG_SIGNATURE, ...ihdr, ...PNG_END]);
 }
 
 function gif(width: number, height: number): Uint8Array {
@@ -95,7 +79,7 @@ test("a container whose declared size disagrees with the bytes sent is refused",
 });
 
 test("bytes too short to hold a header are refused rather than guessed at", () => {
-    assert.throws(() => sniff(new Uint8Array(PNG_SIGNATURE)), /too short/);
+    assert.throws(() => sniff(new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])), /too short/);
 });
 
 test("an unrecognised format names what the board does accept", () => {

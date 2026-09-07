@@ -21,11 +21,47 @@ const sha256 = async (bytes) => new Uint8Array(await crypto.subtle.digest("SHA-2
 const ascii = (text) => [...text].map((character) => character.charCodeAt(0));
 const u32be = (value) => [(value >>> 24) & 0xff, (value >>> 16) & 0xff, (value >>> 8) & 0xff, value & 0xff];
 
-/** Signature, IHDR, IEND: the smallest thing that is honestly a PNG. */
-function png(width, height) {
+function crcTable() {
+    const table = [];
+    for (let n = 0; n < 256; n += 1) {
+        let c = n;
+        for (let k = 0; k < 8; k += 1) {
+            c = (c & 1) !== 0 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+        }
+        table[n] = c >>> 0;
+    }
+    return table;
+}
+
+const CRC_TABLE = crcTable();
+
+function crc32(bytes) {
+    let c = 0xffffffff;
+    for (const byte of bytes) {
+        c = CRC_TABLE[(c ^ byte) & 0xff] ^ (c >>> 8);
+    }
+    return (c ^ 0xffffffff) >>> 0;
+}
+
+function chunk(type, data) {
+    const body = [...ascii(type), ...data];
+    return [...u32be(data.length), ...body, ...u32be(crc32(body))];
+}
+
+/** A small real PNG, so a smoke upload gives browsers something to draw. */
+function png() {
+    const width = 4;
+    const height = 4;
     const signature = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
-    const ihdr = [...u32be(13), ...ascii("IHDR"), ...u32be(width), ...u32be(height), 8, 6, 0, 0, 0, 0, 0, 0, 0];
-    const iend = [0, 0, 0, 0, 0x49, 0x45, 0x4e, 0x44, 0xae, 0x42, 0x60, 0x82];
+    const ihdr = [...u32be(width), ...u32be(height), 8, 6, 0, 0, 0];
+    const idat = [0x78, 0x9c, 0x63, 0x30, 0x4e, 0x9b, 0xf9, 0x1f, 0x19, 0x33, 0x90, 0x2e, 0x00, 0x00, 0x93, 0xe8, 0x23, 0x11, 0xca, 0xcf, 0x02, 0x4a];
+    return new Uint8Array([...signature, ...chunk("IHDR", ihdr), ...chunk("IDAT", idat), ...chunk("IEND", [])]);
+}
+
+function malformedPng() {
+    const signature = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+    const ihdr = [...u32be(13), ...ascii("IHDR"), ...u32be(4), ...u32be(4), 8, 6, 0, 0, 0, 0, 0, 0, 0];
+    const iend = [0, 0, 0, 0, ...ascii("IEND"), 0xae, 0x42, 0x60, 0x82];
     return new Uint8Array([...signature, ...ihdr, ...iend]);
 }
 
@@ -33,6 +69,9 @@ async function refusals(agent, picture) {
     const junk = await send(agent, "POST", "/v1/media", new Uint8Array(64).fill(0x7a));
     check("a file in no recognised format is refused", junk.status === 415, `got ${junk.status}`);
     check("the refusal names what is accepted", Array.isArray(junk.body?.accepted), JSON.stringify(junk.body));
+
+    const noData = await send(agent, "POST", "/v1/media", malformedPng());
+    check("a PNG with no image data is refused", noData.status === 415, `got ${noData.status}`);
 
     // A PNG with an archive behind it decodes in every viewer and carries
     // whatever the sender liked, which is the dead-drop this board refuses.
@@ -102,7 +141,7 @@ export async function mediaChecks(agent) {
     const enabled = doc.media?.enabled === true;
     check("discovery says whether this deployment stores media", typeof doc.media?.enabled === "boolean");
 
-    const picture = png(4, 4);
+    const picture = png();
     if (!enabled) {
         const refused = await send(agent, "POST", "/v1/media", picture);
         check("a board with no bucket refuses the upload", refused.status === 503, `got ${refused.status}`);
