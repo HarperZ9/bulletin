@@ -1,14 +1,13 @@
 import { createHash } from "node:crypto";
 import { createServer } from "node:http";
 import { lstat, readFile, realpath } from "node:fs/promises";
-import { spawn, spawnSync } from "node:child_process";
+import { spawnSync } from "node:child_process";
 import { extname, isAbsolute, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { setTimeout as delay } from "node:timers/promises";
-import { createServer as createNetServer } from "node:net";
 
 const BACKEND_PUBLIC = fileURLToPath(new URL("../../public/", import.meta.url));
-const BACKEND_SERVE = fileURLToPath(new URL("../serve-face.mjs", import.meta.url));
+const BACKEND_ASSETS = Object.freeze(["index.html", "board.css", "js/api.js", "js/app.js", "js/media.js", "js/render.js"]);
+const BACKEND_ASSET_SET = new Set(BACKEND_ASSETS);
 
 export const PORTFOLIO_ASSETS = Object.freeze([
     "bulletin.html",
@@ -113,17 +112,6 @@ function gitStatus(root) {
     return result.status === 0 ? result.stdout.trim() : null;
 }
 
-async function freePort() {
-    const server = createNetServer();
-    await new Promise((resolveListen, reject) => {
-        server.once("error", reject);
-        server.listen(0, "127.0.0.1", resolveListen);
-    });
-    const address = server.address();
-    await new Promise((resolveClose) => server.close(resolveClose));
-    return address.port;
-}
-
 async function optionalReceipt(rootInfo, relPath) {
     try {
         return await receiptFor(rootInfo, relPath, "portfolio receipt");
@@ -187,27 +175,36 @@ async function startServer(rootInfo, boardOrigin) {
 }
 
 export async function startBackendFace() {
-    const port = await freePort();
-    const child = spawn(process.execPath, [BACKEND_SERVE, String(port)], {
-        cwd: resolve(BACKEND_PUBLIC, ".."),
-        stdio: ["ignore", "ignore", "pipe"],
-        windowsHide: true,
-    });
-    let stderr = "";
-    child.stderr.setEncoding("utf8");
-    child.stderr.on("data", (chunk) => { stderr = (stderr + chunk).slice(-4096); });
-    const origin = `http://127.0.0.1:${port}`;
-    for (let i = 0; i < 100; i += 1) {
-        if (child.exitCode !== null) throw new Error(`backend serve-face exited early: ${stderr.trim()}`);
+    const rootInfo = await fileRoot(BACKEND_PUBLIC);
+    const server = await startBackendServer(rootInfo);
+    const address = server.address();
+    return { kind: "backend", origin: `http://127.0.0.1:${address.port}`, path: "/", receipt: await backendFaceReceipt(rootInfo), close: () => new Promise((resolveClose) => server.close(resolveClose)) };
+}
+
+function backendAsset(requestUrl) {
+    const url = new URL(requestUrl ?? "/", "http://127.0.0.1");
+    const leaf = decodeURIComponent(url.pathname).replace(/^\/+/, "") || "index.html";
+    if (leaf === "favicon.ico" || leaf.startsWith("system/fonts/")) return { empty: true };
+    return BACKEND_ASSET_SET.has(leaf) ? { asset: leaf } : { status: 404, body: "not found\n" };
+}
+
+async function startBackendServer(rootInfo) {
+    const server = createServer(async (request, response) => {
         try {
-            const response = await fetch(origin);
-            if (response.ok) return { kind: "backend", origin, path: "/", receipt: await backendFaceReceipt(), close: () => { child.kill(); return Promise.resolve(); } };
+            const target = backendAsset(request.url);
+            if (target.empty) return response.writeHead(204, { "cache-control": "no-store" }).end();
+            if (target.asset === undefined) return response.writeHead(target.status, { "content-type": "text/plain; charset=utf-8" }).end(target.body);
+            const path = await safeFile(rootInfo, target.asset, "backend asset");
+            response.writeHead(200, { "content-type": contentType(target.asset), "cache-control": "no-store" }).end(await readFile(path));
         } catch {
-            await delay(100);
+            response.writeHead(404, { "content-type": "text/plain; charset=utf-8" }).end("not found\n");
         }
-    }
-    child.kill();
-    throw new Error("backend serve-face did not answer on loopback");
+    });
+    await new Promise((resolveListen, reject) => {
+        server.once("error", reject);
+        server.listen(0, "127.0.0.1", resolveListen);
+    });
+    return server;
 }
 
 export async function startPortfolioFace(faceRoot, boardOrigin) {
@@ -218,23 +215,24 @@ export async function startPortfolioFace(faceRoot, boardOrigin) {
     return { kind: "portfolio", origin: `http://127.0.0.1:${address.port}`, path: "/bulletin.html", receipt, close: () => new Promise((resolveClose) => server.close(resolveClose)) };
 }
 
-export async function startInvalidImageFace(expected) {
-    const invalidBody = Buffer.from("this is not a png");
+function mediaTag(expected, attrs = "") {
+    const src = `/v1/media/${escapeAttribute(expected.mediaId)}`;
+    const extra = attrs === "" ? "" : ` ${attrs}`;
+    if (expected.kind === "audio") return `<audio class="media"${extra} controls preload="none" src="${src}"></audio>`;
+    if (expected.kind === "video") return `<video class="media"${extra} controls playsinline preload="metadata" src="${src}"></video>`;
+    return `<img class="media"${extra} src="${src}" alt="${escapeAttribute(expected.alt)}">`;
+}
+
+function controlHtml(expected, attrs = "") {
+    return `<div id="board"><article data-post-id="${escapeAttribute(expected.postId)}"><p class="post-body">${escapeHtml(expected.body)}</p><figure data-media-id="${escapeAttribute(expected.mediaId)}">${mediaTag(expected, attrs)}<figcaption class="post-attachment-caption">${escapeHtml(expected.alt)}</figcaption></figure></article></div>`;
+}
+
+async function startSyntheticMediaFace(expected, bytes, path, attrs = "") {
     const server = createServer((request, response) => {
         const url = new URL(request.url ?? "/", "http://127.0.0.1");
-        if (url.pathname === `/v1/media/${expected.mediaId}`) {
-            response.writeHead(200, { "content-type": "image/png", "cache-control": "no-store" }).end(invalidBody);
-            return;
-        }
-        if (url.pathname === "/favicon.ico") {
-            response.writeHead(204, { "cache-control": "no-store" }).end();
-            return;
-        }
-        if (url.pathname === "/invalid-image-control.html") {
-            response.writeHead(200, { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" });
-            response.end(`<div id="board"><article data-post-id="${escapeAttribute(expected.postId)}"><p class="post-body">${escapeHtml(expected.body)}</p><figure data-media-id="${escapeAttribute(expected.mediaId)}"><img src="/v1/media/${escapeAttribute(expected.mediaId)}" alt="${escapeAttribute(expected.alt)}"><figcaption class="post-attachment-caption">${escapeHtml(expected.alt)}</figcaption></figure></article></div>`);
-            return;
-        }
+        if (url.pathname === `/v1/media/${expected.mediaId}`) return response.writeHead(200, { "content-type": expected.mediaType, "cache-control": "no-store" }).end(bytes);
+        if (url.pathname === "/favicon.ico") return response.writeHead(204, { "cache-control": "no-store" }).end();
+        if (url.pathname === path) return response.writeHead(200, { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" }).end(controlHtml(expected, attrs));
         response.writeHead(404, { "content-type": "text/plain; charset=utf-8" }).end("not found\n");
     });
     await new Promise((resolveListen, reject) => {
@@ -242,20 +240,28 @@ export async function startInvalidImageFace(expected) {
         server.listen(0, "127.0.0.1", resolveListen);
     });
     const address = server.address();
-    return { kind: "portfolio", origin: `http://127.0.0.1:${address.port}`, path: "/invalid-image-control.html", close: () => new Promise((resolveClose) => server.close(resolveClose)) };
+    return { kind: "portfolio", origin: `http://127.0.0.1:${address.port}`, path, close: () => new Promise((resolveClose) => server.close(resolveClose)) };
 }
 
-export async function backendFaceReceipt() {
-    const rootInfo = await fileRoot(BACKEND_PUBLIC);
+export function startInvalidMediaFace(expected) {
+    return startSyntheticMediaFace(expected, Buffer.from("this is not a valid media fixture"), "/invalid-image-control.html");
+}
+
+export function startHiddenMediaFace(expected, bytes) {
+    return startSyntheticMediaFace(expected, bytes, "/hidden-media-control.html", 'data-hidden-control="true" style="display:none"');
+}
+
+export const startInvalidImageFace = startInvalidMediaFace;
+
+export async function backendFaceReceipt(rootInfo = null) {
+    rootInfo ??= await fileRoot(BACKEND_PUBLIC);
     return {
         kind: "backend",
         root: rootInfo.root,
         real_root: rootInfo.realRoot,
-        assets: await Promise.all(["index.html", "js/app.js", "js/render.js", "js/media.js"].map((asset) => receiptFor(rootInfo, asset, "backend asset"))),
+        assets: await Promise.all(BACKEND_ASSETS.map((asset) => receiptFor(rootInfo, asset, "backend asset"))),
     };
 }
-
-
 
 
 
