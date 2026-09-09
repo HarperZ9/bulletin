@@ -174,10 +174,10 @@ function collectStderr(child, limit) {
     });
     return stderr;
 }
-export function chromeLaunchArgs(port, profile) {
-    return [
+export function chromeLaunchArgs(port, profile, options = {}) {
+    const noSandbox = (options.env ?? process.env).BULLETIN_CHROME_NO_SANDBOX === "1";
+    const args = [
         "--headless=new",
-        "--no-sandbox",
         "--disable-background-networking",
         "--disable-component-update",
         "--disable-default-apps",
@@ -191,6 +191,8 @@ export function chromeLaunchArgs(port, profile) {
         `--user-data-dir=${profile}`,
         "about:blank",
     ];
+    if (noSandbox) args.splice(1, 0, "--no-sandbox");
+    return args;
 }
 function spawnChrome(port, profile, chrome, stderrLimit) {
     const child = spawn(chrome, chromeLaunchArgs(port, profile), { stdio: ["ignore", "ignore", "pipe"], windowsHide: true });

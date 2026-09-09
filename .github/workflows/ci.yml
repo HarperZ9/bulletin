@@ -58,7 +58,7 @@ jobs:
           node scripts/smoke.mjs --base http://127.0.0.1:8787
           export CHROME_PATH="$(command -v google-chrome || command -v chromium)"
           test -n "$CHROME_PATH"
-          node scripts/smoke/media-cross-surface.mjs \
+          BULLETIN_CHROME_NO_SANDBOX=1 node scripts/smoke/media-cross-surface.mjs \
             --base http://127.0.0.1:8787 \
             --face-root "$GITHUB_WORKSPACE/.ci-portfolio" \
             --log-dir "$RUNNER_TEMP/bulletin-media-cross"

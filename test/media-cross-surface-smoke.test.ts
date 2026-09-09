@@ -270,12 +270,13 @@ test("Chrome DevTools JSON reads are bounded by response-body deadline", async (
     }
 });
 
-test("Chrome launch arguments are CI-portable and loopback-bound", () => {
-    const args = chromeLaunchArgs(9222, "/tmp/bulletin-profile");
-    assert.ok(args.includes("--no-sandbox"));
+test("Chrome launch arguments default sandbox on and opt in only for CI", () => {
+    const args = chromeLaunchArgs(9222, "/tmp/bulletin-profile", { env: {} });
+    assert.equal(args.includes("--no-sandbox"), false);
     assert.ok(args.includes("--remote-debugging-address=127.0.0.1"));
     assert.ok(args.includes("--remote-debugging-port=9222"));
     assert.ok(args.includes("--user-data-dir=/tmp/bulletin-profile"));
+    assert.ok(chromeLaunchArgs(9223, "/tmp/profile", { env: { BULLETIN_CHROME_NO_SANDBOX: "1" } }).includes("--no-sandbox"));
 });
 
 test("Chrome launch failure cleans the owned profile directory", async () => {
