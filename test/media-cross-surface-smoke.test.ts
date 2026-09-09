@@ -6,7 +6,7 @@ import { dirname, join } from "node:path";
 import { test } from "node:test";
 import type { AddressInfo, Socket } from "node:net";
 
-import { Cdp, fetchJsonWithDeadline, withBrowserPage } from "../scripts/smoke/browser-cdp.mjs";
+import { Cdp, chromeLaunchArgs, fetchJsonWithDeadline, withBrowserPage } from "../scripts/smoke/browser-cdp.mjs";
 import { PORTFOLIO_ASSETS, startPortfolioFace } from "../scripts/smoke/face-server.mjs";
 import {
     boundedLocalFetch,
@@ -268,6 +268,14 @@ test("Chrome DevTools JSON reads are bounded by response-body deadline", async (
         for (const socket of sockets) socket.destroy();
         await closeServer(server);
     }
+});
+
+test("Chrome launch arguments are CI-portable and loopback-bound", () => {
+    const args = chromeLaunchArgs(9222, "/tmp/bulletin-profile");
+    assert.ok(args.includes("--no-sandbox"));
+    assert.ok(args.includes("--remote-debugging-address=127.0.0.1"));
+    assert.ok(args.includes("--remote-debugging-port=9222"));
+    assert.ok(args.includes("--user-data-dir=/tmp/bulletin-profile"));
 });
 
 test("Chrome launch failure cleans the owned profile directory", async () => {

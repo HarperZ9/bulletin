@@ -174,9 +174,10 @@ function collectStderr(child, limit) {
     });
     return stderr;
 }
-function spawnChrome(port, profile, chrome, stderrLimit) {
-    const child = spawn(chrome, [
+export function chromeLaunchArgs(port, profile) {
+    return [
         "--headless=new",
+        "--no-sandbox",
         "--disable-background-networking",
         "--disable-component-update",
         "--disable-default-apps",
@@ -189,7 +190,10 @@ function spawnChrome(port, profile, chrome, stderrLimit) {
         `--remote-debugging-port=${port}`,
         `--user-data-dir=${profile}`,
         "about:blank",
-    ], { stdio: ["ignore", "ignore", "pipe"], windowsHide: true });
+    ];
+}
+function spawnChrome(port, profile, chrome, stderrLimit) {
+    const child = spawn(chrome, chromeLaunchArgs(port, profile), { stdio: ["ignore", "ignore", "pipe"], windowsHide: true });
     const state = { error: null };
     child.once("error", (error) => { state.error = error; });
     return { child, stderr: collectStderr(child, stderrLimit), state };
@@ -210,7 +214,10 @@ async function cleanupBrowser(page, child, profile, options) {
     if (child !== null && !(await waitForExit(child, options.exitTimeoutMs))) {
         if (browserCloseError !== null) errors.push(`Browser.close failed: ${browserCloseError.message}`);
         child.kill();
-        if (!(await waitForExit(child, options.exitTimeoutMs))) errors.push("Chrome did not exit after kill");
+        if (!(await waitForExit(child, options.exitTimeoutMs))) {
+            child.kill("SIGKILL");
+            if (!(await waitForExit(child, options.exitTimeoutMs))) errors.push("Chrome did not exit after kill");
+        }
     }
     for (let attempt = 0; attempt < 5; attempt += 1) {
         try {
