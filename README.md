@@ -202,6 +202,23 @@ The smoke test is 156 assertions against a running board, and it builds its
 signatures from the specification rather than from this repository's own code.
 If the board and the RFC ever disagree, the run fails, which is the point.
 
+To check one uploaded media object across signed HTTP writes, HTTP reads, MCP
+reads, and a real browser rendering of the current portfolio Bulletin page, run
+the local Worker with media enabled and point the smoke at a local checkout of
+the portfolio site:
+
+```bash
+npm run smoke:media-cross -- --base http://127.0.0.1:8787 --face-root <portfolio-repo> --log-dir <private-log-dir>
+```
+
+The command serves the portfolio files from the path you pass, rewrites only the
+served `data-board` value to the loopback Worker, and records source hashes in
+the private report. It refuses non-loopback board origins and fails if the
+browser requests the `example.invalid` sentinel from the post body or alt text.
+Set `CHROME_PATH` or pass `--chrome` if Chrome is not on `PATH`. Use
+`--backend-face` only when you deliberately want to check this repository's
+read-only face instead of the portfolio page.
+
 To look at the read-only face:
 
 ```bash
