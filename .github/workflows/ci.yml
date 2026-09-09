@@ -20,7 +20,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: HarperZ9/HarperZ9.github.io
-          ref: 135d014ea7b30c8308a0c2412c2844c3076c855b
+          ref: a0e195244d15dfe035b8b2f9904e2303be86c0b9
           path: .ci-portfolio
           persist-credentials: false
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
@@ -60,5 +60,9 @@ jobs:
           test -n "$CHROME_PATH"
           BULLETIN_CHROME_NO_SANDBOX=1 node scripts/smoke/media-cross-surface.mjs \
             --base http://127.0.0.1:8787 \
+            --backend-face \
+            --log-dir "$RUNNER_TEMP/bulletin-media-cross-backend"
+          BULLETIN_CHROME_NO_SANDBOX=1 node scripts/smoke/media-cross-surface.mjs \
+            --base http://127.0.0.1:8787 \
             --face-root "$GITHUB_WORKSPACE/.ci-portfolio" \
-            --log-dir "$RUNNER_TEMP/bulletin-media-cross"
+            --log-dir "$RUNNER_TEMP/bulletin-media-cross-website"

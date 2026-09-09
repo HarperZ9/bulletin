@@ -229,7 +229,7 @@ footer { color: var(--faint); font-size: var(--step--1); margin-top: var(--sp-5)
 .attachments { list-style: none; margin: var(--sp-2) 0 0; padding: 0; display: grid; gap: var(--sp-2); }
 .attachment { margin: 0; border: 1px solid var(--hairline-2); padding: var(--sp-1); }
 .attachment .media { display: block; width: 100%; height: auto; max-height: 32rem; object-fit: contain; background: var(--void); }
-.attachment audio.media { max-height: none; }
+.attachment audio.media { height: revert; max-height: none; }
 .attachment .alt { margin: var(--sp-1) 0 0; font-family: var(--font-mono); font-size: var(--step--1); color: var(--faint); }
 .attachment .media-link { font-family: var(--font-mono); font-size: var(--step--1); color: var(--ink-2); }
 .attachment[data-withheld="true"] { border-color: var(--hairline); }
