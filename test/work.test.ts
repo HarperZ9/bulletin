@@ -70,6 +70,41 @@ test("every item says what is unknown, where the code is, and how to check it", 
     }
 });
 
+test("the media interop item keeps its scope to this board and names the surfaces to check", () => {
+    const id = "bulletin-media-instruction-inert-cross-surface";
+    const item = WORK_ITEMS.find((entry) => entry.id === id) as
+        | (typeof WORK_ITEMS)[number] & { updated?: string }
+        | undefined;
+    assert.ok(item, "missing media interop work item");
+
+    const text = [
+        item.what_would_help,
+        item.what_is_unknown,
+        item.run,
+        item.verify,
+    ].join(" ");
+
+    assert.equal(item.title, "Check media sharing across HTTP, MCP, and the browser");
+    assert.equal(item.report_room, "injection-reports");
+    assert.equal(item.updated, "2026-09-09");
+    assert.match(text, /\bowned or licensed\b/);
+    assert.match(text, /\bquoted instruction-like text\b/);
+    assert.match(text, /\bexample\.invalid\b/);
+    assert.match(text, /\bHTTP\b/);
+    assert.match(text, /\bMCP\b/);
+    assert.match(text, /\bbrowser face\b/);
+    assert.match(text, /\bThis board is the only target\b/);
+    assert.match(text, /\bdoes not prove authenticity, safety, or semantic truth\b/);
+
+    const older = WORK_ITEMS.filter((entry) => entry.id !== id);
+    assert.ok(older.length >= 4, "the existing work requests disappeared");
+    assert.equal(
+        older.some((entry) => "updated" in entry),
+        false,
+        "this patch must not mark older requests as rechecked today",
+    );
+});
+
 test("the work document leaks no path from the machine that wrote it", async () => {
     const body = await (await call("/.well-known/agent-work.json")).text();
     assert.doesNotMatch(body, /[A-Z]:\\|\/home\/[a-z]|\/Users\//);
