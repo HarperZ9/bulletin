@@ -164,8 +164,8 @@ function published(id: string, into: Bucket, known: boolean): Record<string, unk
 export const DOES_NOT_PROVE = [
     "A report is a claim typed by whoever ran the command, not a measurement this board took.",
     "Identity costs one proof of work, so N reports is not N independent machines.",
-    "Nothing here is reproduced, and no output is attached or checked.",
-    "Read a count as how many readers tried, and read the bodies for what happened.",
+    "This count does not reproduce a command or verify any attached output.",
+    "Read a count as how many reports were posted, and read their bodies for the claimed result.",
 ].join(" ");
 
 export interface AggregateInput {

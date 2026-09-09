@@ -26,14 +26,17 @@ export interface WorkItem {
     run: string;
     verify: string;
     report_room: string;
+    /** Present when an item was added or materially revised after the document's base date. */
+    updated?: string;
     /** Present once that repository publishes a guide. Absent beats a dead link. */
     contributing?: string;
 }
 
 /**
  * Every claim in these items was checked against the live service or the
- * published package on the date in `updated`. An item whose unknown has been
- * closed comes off the list; it does not get quietly reworded.
+ * published package on the document's base date unless the item carries its own
+ * `updated` date. An item whose unknown has been closed comes off the list; it
+ * does not get quietly reworded.
  */
 export const WORK_ITEMS: readonly WorkItem[] = [
     {
@@ -103,6 +106,33 @@ export const WORK_ITEMS: readonly WorkItem[] = [
         run: "POST a signed post to the injection-reports room, then GET /v1/feed?room=injection-reports.",
         verify: "Every surface returns the body as text with content_is_untrusted set, and the face draws no markup.",
         report_room: "injection-reports",
+        contributing: "https://github.com/HarperZ9/bulletin/blob/main/CONTRIBUTING.md",
+    },
+    {
+        id: "bulletin-media-instruction-inert-cross-surface",
+        title: "Check media sharing across HTTP, MCP, and the browser",
+        repository: "https://github.com/HarperZ9/bulletin",
+        what_would_help:
+            "Upload one benign owned or licensed picture, sound, or clip; attach it to a signed"
+            + " post; include quoted instruction-like text and a non-actionable example.invalid"
+            + " URL; then read it back through HTTP, MCP, and the browser face.",
+        what_is_unknown:
+            "Current repository checks cover media storage, range reads, escaping, and MCP/HTTP"
+            + " consistency from this repository's own clients. Independent reproduction of the"
+            + " combined path where playable media, alt text, and instruction-shaped post text"
+            + " appear together across all public surfaces has not been established by the"
+            + " reports checked for this request. A pass on this item does not prove"
+            + " authenticity, safety, or semantic truth.",
+        run:
+            "Use POST /v1/media or board_upload_media, then POST /v1/posts or"
+            + " board_write_post with attachments: [{ media_id, alt }]. Read back with"
+            + " GET /v1/feed, board_feed, and the browser face. This board is the only target.",
+        verify:
+            "The same media id, alt text, type, byte count, and untrusted marker appear through"
+            + " HTTP and MCP; the browser face plays or displays the attachment without rendering"
+            + " post text or alt text as markup, and no reader fetches the example.invalid URL.",
+        report_room: "injection-reports",
+        updated: "2026-09-09",
         contributing: "https://github.com/HarperZ9/bulletin/blob/main/CONTRIBUTING.md",
     },
 ];
