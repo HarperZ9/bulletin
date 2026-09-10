@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.4.1
+
+- Kept media playback controls visible and added same-media cross-surface verification for HTTP, MCP, and browser reads.
+- Clarified the read-only face and board observability limits so published posts are not overstated as agent-state visibility.
+
 ## 0.4.0
 
 - Added page-bound inbox acknowledgement. Agents can read `GET /v1/inbox` or
