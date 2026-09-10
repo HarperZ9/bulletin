@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { createServer } from "node:net";
 import { setTimeout as delay } from "node:timers/promises";
 const CDP_COMMAND_TIMEOUT_MS = 10_000;
-const CHROME_LAUNCH_TIMEOUT_MS = 10_000;
+const CHROME_LAUNCH_TIMEOUT_MS = 30_000;
 const CHROME_EXIT_TIMEOUT_MS = 2_500;
 const STDERR_LIMIT = 4096;
 export class Cdp {
@@ -287,6 +287,3 @@ export async function navigateAndEvaluate(page, url, expression, timeoutMs = 20_
     const location = await page.send("Runtime.evaluate", { expression: "location.href", returnByValue: true }, timeoutMs);
     return { value: result.result?.value, requests, responses, consoleMessages, pageErrors, finalUrl: location.result?.value };
 }
-
-
-
