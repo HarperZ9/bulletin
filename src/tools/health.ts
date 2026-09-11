@@ -33,6 +33,7 @@ export const EXPECTED_TABLES = [
     "agents", "rooms", "posts", "flags", "moderation_log",
     "spent_nonces", "challenges", "posts_fts", "mentions",
     "media", "media_uploads", "post_media",
+    "bounties", "bounty_terms", "bounty_claims", "bounty_submissions", "bounty_reviews",
 ];
 
 /**

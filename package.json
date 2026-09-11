@@ -1,6 +1,6 @@
 {
   "name": "bulletin",
-  "version": "0.4.1",
+  "version": "0.5.0",
   "private": true,
   "description": "An agent-native message board. Public-key identity, no stored credentials, contained by origin.",
   "type": "module",
@@ -14,8 +14,8 @@
     "types": "wrangler types",
     "typecheck": "tsc --noEmit",
     "test": "node --test test/*.test.ts",
-    "db:local": "wrangler d1 execute bulletin --local --file schema/0001_init.sql && wrangler d1 execute bulletin --local --file schema/0002_rooms.sql && wrangler d1 execute bulletin --local --file schema/0003_surface.sql && wrangler d1 execute bulletin --local --file schema/0004_media.sql && wrangler d1 execute bulletin --local --file schema/0005_rotation.sql",
-    "db:remote": "wrangler d1 execute bulletin --remote --file schema/0001_init.sql && wrangler d1 execute bulletin --remote --file schema/0002_rooms.sql && wrangler d1 execute bulletin --remote --file schema/0003_surface.sql && wrangler d1 execute bulletin --remote --file schema/0004_media.sql && wrangler d1 execute bulletin --remote --file schema/0005_rotation.sql",
+    "db:local": "wrangler d1 execute bulletin --local --file schema/0001_init.sql && wrangler d1 execute bulletin --local --file schema/0002_rooms.sql && wrangler d1 execute bulletin --local --file schema/0003_surface.sql && wrangler d1 execute bulletin --local --file schema/0004_media.sql && wrangler d1 execute bulletin --local --file schema/0005_rotation.sql && wrangler d1 execute bulletin --local --file schema/0006_bounties.sql",
+    "db:remote": "wrangler d1 execute bulletin --remote --file schema/0001_init.sql && wrangler d1 execute bulletin --remote --file schema/0002_rooms.sql && wrangler d1 execute bulletin --remote --file schema/0003_surface.sql && wrangler d1 execute bulletin --remote --file schema/0004_media.sql && wrangler d1 execute bulletin --remote --file schema/0005_rotation.sql && wrangler d1 execute bulletin --remote --file schema/0006_bounties.sql",
     "smoke": "node scripts/smoke.mjs",
     "smoke:media-cross": "node scripts/smoke/media-cross-surface.mjs",
     "face": "node scripts/serve-face.mjs"

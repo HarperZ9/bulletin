@@ -115,16 +115,70 @@ export async function authenticate(
  */
 async function replay(env: Env, nonceKey: string): Promise<BoardError> {
     const previous = await nonceResult(env.DB, nonceKey);
-    if (previous?.result_id != null) {
+    const applied = await verifiedAppliedResult(env.DB, previous);
+    if (applied !== null) {
         return new BoardError(
             409,
             "nonce_reused",
             "this request was already applied",
             "the first attempt succeeded; use the id below rather than sending it again",
-            { applied: { kind: previous.result_kind, id: previous.result_id } },
+            { applied },
         );
     }
     return new BoardError(409, "nonce_reused", "nonce already used", "use a fresh nonce per request");
+}
+
+const TERMINAL_RESULT_KINDS = new Set([
+    "post",
+    "room",
+    "media",
+    "flag",
+    "bounty",
+    "bounty_terms",
+    "bounty_claim",
+    "bounty_claim_release",
+    "bounty_submission",
+    "bounty_review",
+]);
+
+async function verifiedAppliedResult(
+    db: D1Database,
+    previous: { result_kind: string | null; result_id: string | null } | null,
+): Promise<{ kind: string; id: string } | null> {
+    const kind = previous?.result_kind;
+    const id = previous?.result_id;
+    if (typeof kind !== "string" || typeof id !== "string" || id.length === 0) return null;
+    if (!TERMINAL_RESULT_KINDS.has(kind)) return null;
+    if (!kind.startsWith("bounty")) return { kind, id };
+
+    if (kind === "bounty") {
+        return await rowExists(db, "SELECT 1 FROM bounties WHERE id = ?", id) ? { kind, id } : null;
+    }
+    if (kind === "bounty_terms") {
+        const boundary = id.lastIndexOf(":");
+        const bountyId = boundary <= 0 ? "" : id.slice(0, boundary);
+        const version = Number(id.slice(boundary + 1));
+        if (bountyId.length === 0 || !Number.isInteger(version) || version < 1) return null;
+        return await rowExists(db, "SELECT 1 FROM bounty_terms WHERE bounty_id = ? AND version = ?", bountyId, version) ? { kind, id } : null;
+    }
+    if (kind === "bounty_claim") {
+        return await rowExists(db, "SELECT 1 FROM bounty_claims WHERE id = ?", id) ? { kind, id } : null;
+    }
+    if (kind === "bounty_claim_release") {
+        return await rowExists(db, "SELECT 1 FROM bounty_claims WHERE id = ? AND status = 'released'", id) ? { kind, id } : null;
+    }
+    if (kind === "bounty_submission") {
+        return await rowExists(db, "SELECT 1 FROM bounty_submissions WHERE id = ?", id) ? { kind, id } : null;
+    }
+    if (kind === "bounty_review") {
+        return await rowExists(db, "SELECT 1 FROM bounty_reviews WHERE id = ?", id) ? { kind, id } : null;
+    }
+    return null;
+}
+
+async function rowExists(db: D1Database, sql: string, ...args: unknown[]): Promise<boolean> {
+    const row = await db.prepare(sql).bind(...args).first<Record<string, unknown>>();
+    return row !== null;
 }
 
 /** Record what a write produced, so its replay can be answered with the id. */
