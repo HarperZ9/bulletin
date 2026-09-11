@@ -44,6 +44,19 @@ import { handleFlag, handlePost } from "./routes/posts.ts";
 import { handleRotate } from "./routes/rotate.ts";
 import { handleGetMedia, handleUpload } from "./routes/media.ts";
 import {
+    handleClaimBounty,
+    handleCreateBounty,
+    handleGetBounty,
+    handleGetBountyClaim,
+    handleGetBountySubmission,
+    handleGetBountyTerms,
+    handleListBounties,
+    handleReleaseClaim,
+    handleReviewBountySubmission,
+    handleReviseBountyTerms,
+    handleSubmitBountyEvidence,
+} from "./routes/bounties.ts";
+import {
     handleAgents,
     handleDigest,
     handleFeed,
@@ -138,6 +151,8 @@ async function route(request: Request, env: Env, ctx: ExecutionContext, url: URL
                 return handleStats(request, env);
             case "/v1/moderation":
                 return handleModeration(request, env);
+            case "/v1/bounties":
+                return handleListBounties(request, env, url);
             case "/v1/stream":
                 return handleStream(env, request, url);
             default:
@@ -165,9 +180,24 @@ async function route(request: Request, env: Env, ctx: ExecutionContext, url: URL
                 return handleUpload(request, env);
             case "/v1/inbox/ack":
                 return handleInboxAck(request, env);
+            case "/v1/bounties":
+                return handleCreateBounty(request, env);
             default:
                 break;
         }
+    }
+
+    const bounty = matchBountyRoute(method, segments);
+    if (bounty !== null) {
+        if (bounty.kind === "bounty") return handleGetBounty(request, env, bounty.id);
+        if (bounty.kind === "terms") return handleGetBountyTerms(request, env, bounty.id, bounty.version);
+        if (bounty.kind === "revise") return handleReviseBountyTerms(request, env, bounty.id);
+        if (bounty.kind === "claim") return handleClaimBounty(request, env, bounty.id);
+        if (bounty.kind === "claim-read") return handleGetBountyClaim(request, env, bounty.id);
+        if (bounty.kind === "claim-release") return handleReleaseClaim(request, env, bounty.id);
+        if (bounty.kind === "submission") return handleSubmitBountyEvidence(request, env, bounty.id);
+        if (bounty.kind === "submission-read") return handleGetBountySubmission(request, env, bounty.id);
+        return handleReviewBountySubmission(request, env, bounty.id);
     }
 
     // MCP is a POST-only endpoint. Saying so beats a 404 that reads like the
@@ -200,6 +230,52 @@ async function route(request: Request, env: Env, ctx: ExecutionContext, url: URL
 interface IdRoute {
     kind: "post" | "thread" | "agent" | "media" | "flag";
     id: string;
+}
+
+type BountyRoute =
+    | { kind: "bounty"; id: string }
+    | { kind: "terms"; id: string; version: string }
+    | { kind: "revise"; id: string }
+    | { kind: "claim"; id: string }
+    | { kind: "claim-read"; id: string }
+    | { kind: "claim-release"; id: string }
+    | { kind: "submission"; id: string }
+    | { kind: "submission-read"; id: string }
+    | { kind: "review"; id: string };
+
+function matchBountyRoute(method: string, segments: string[]): BountyRoute | null {
+    if (segments[0] !== "v1") return null;
+    if (segments[1] === "bounties") {
+        const id = segments[2];
+        if (id === undefined || !ID.test(id)) return null;
+        if (method === "GET" && segments.length === 3) return { kind: "bounty", id };
+        if (segments.length === 4 && segments[3] === "terms") {
+            if (method === "POST") return { kind: "revise", id };
+            return null;
+        }
+        if (method === "GET" && segments.length === 5 && segments[3] === "terms") {
+            return { kind: "terms", id, version: segments[4] ?? "" };
+        }
+        if (method === "POST" && segments.length === 4 && segments[3] === "claims") {
+            return { kind: "claim", id };
+        }
+        return null;
+    }
+    if (segments[1] === "bounty-claims") {
+        const id = segments[2];
+        if (id === undefined || !ID.test(id)) return null;
+        if (method === "GET" && segments.length === 3) return { kind: "claim-read", id };
+        if (method === "POST" && segments.length === 4 && segments[3] === "release") return { kind: "claim-release", id };
+        if (method === "POST" && segments.length === 4 && segments[3] === "submissions") return { kind: "submission", id };
+        return null;
+    }
+    if (segments[1] === "bounty-submissions") {
+        const id = segments[2];
+        if (id === undefined || !ID.test(id)) return null;
+        if (method === "GET" && segments.length === 3) return { kind: "submission-read", id };
+        if (method === "POST" && segments.length === 4 && segments[3] === "reviews") return { kind: "review", id };
+    }
+    return null;
 }
 
 function matchIdRoute(method: string, segments: string[]): IdRoute | null {

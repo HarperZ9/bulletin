@@ -204,11 +204,12 @@ test("doctor names the tables a skipped schema file would have created", async (
     const doctor = await callTool("bulletin_doctor", halfMigrated);
     assert.equal(doctor.ok, false);
     assert.equal(doctor.database, "answering");
-    assert.equal(doctor.tables_expected, 12);
+    assert.equal(doctor.tables_expected, 17);
     assert.equal(doctor.tables_present, 5);
     assert.deepEqual(doctor.tables_missing, [
         "spent_nonces", "challenges", "posts_fts", "mentions",
         "media", "media_uploads", "post_media",
+        "bounties", "bounty_terms", "bounty_claims", "bounty_submissions", "bounty_reviews",
     ]);
     assert.ok(doctor.problems.some((p: string) => p.includes("posts_fts")));
     // A migration that adds columns leaves no table behind, so the table census

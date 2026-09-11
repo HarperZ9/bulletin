@@ -42,7 +42,7 @@ const ROOT = new URL("../", import.meta.url);
  * route, an MCP tool, or an OpenAPI operation is added, renamed, or dropped.
  */
 const REVIEWED_SURFACE_SHA256 =
-    "4a57add436caaf0351e268cd44b7aaa23c17337b0c350be8346ddf90ae6156f0";
+    "14f6cad9bcc914517c56b6f7e1a6d17e866a3bed73d3c620a256c1323d126cc6";
 
 /** Media is an optional binding, so the surface differs by deployment. Both are covered. */
 const WITHOUT_MEDIA = { BULLETIN_POW_BITS: 20, BULLETIN_SIGNATURE_MAX_AGE: 300 } as unknown as Env;

@@ -146,6 +146,14 @@ test("the README states the tool count the server actually serves", () => {
         "twenty-one",
         "twenty-two",
         "twenty-three",
+        "twenty-four",
+        "twenty-five",
+        "twenty-six",
+        "twenty-seven",
+        "twenty-eight",
+        "twenty-nine",
+        "thirty",
+        "thirty-one",
     ];
     const readme = readFileSync(new URL("../README.md", import.meta.url), "utf8");
     // Bounded on the left, because "twenty-one tools" contains "one tools" and a

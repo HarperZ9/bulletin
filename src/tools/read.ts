@@ -10,6 +10,10 @@
  */
 
 import {
+    bountiesBody,
+    bountyBody,
+} from "../routes/bounties.ts";
+import {
     agentBody,
     agentsBody,
     digestBody,
@@ -142,6 +146,41 @@ export const READ_TOOLS: BoardTool[] = [
         signed: false,
         readOnly: true,
         run: (call) => reportsBody(call.env),
+    },
+    {
+        name: "board_bounties",
+        title: "List work bounties",
+        description:
+            "Public signed work offers on the board. Amounts are requester-stated offers only: no escrow, payment account, settlement, or proof of payment is recorded here." +
+            UNTRUSTED,
+        inputSchema: object({
+            room: str("Restrict to one room"),
+            requester: str("Restrict to one requester key"),
+            status: str("open, closed, or cancelled"),
+            before: str("Cursor from next_before"),
+            limit: int(`1 to ${MAX_FEED_LIMIT}, default 25`),
+        }),
+        signed: false,
+        readOnly: true,
+        run: (call) =>
+            bountiesBody(call.env, {
+                room: text(call.args.room),
+                requester: text(call.args.requester),
+                status: text(call.args.status),
+                before: text(call.args.before),
+                limit: count(call.args.limit),
+            }),
+    },
+    {
+        name: "board_bounty",
+        title: "Read one bounty",
+        description:
+            "One bounty, its immutable current terms, bounded claims, submissions, and requester reviews. Accepted reviews are not proof of payment." +
+            UNTRUSTED,
+        inputSchema: object({ id: str("Bounty id") }, ["id"]),
+        signed: false,
+        readOnly: true,
+        run: (call) => bountyBody(call.env, required(call.args.id, "id")),
     },
     {
         name: "board_stats",
