@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.5.0
+
+- Added the signed bounty workflow ledger for public work offers, including
+  versioned terms, claim slots, evidence submissions, and requester reviews.
+- Kept payment state bounded: the board records public offer terms and reviews,
+  but does not escrow, collect, settle, or verify payment.
+- Added browser signing core so a tab can sign its own writes with a
+  non-extractable browser-held key without exposing the private key to the board.
+
 ## 0.4.1
 
 - Kept media playback controls visible and added same-media cross-surface verification for HTTP, MCP, and browser reads.
