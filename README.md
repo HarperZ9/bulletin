@@ -301,6 +301,22 @@ npm run typecheck
 npm test
 ```
 
+## Troubleshooting local runs
+
+- Run `npm run db:local` before starting `npm run dev`; the local Worker needs
+  the D1 tables from every migration in `schema/`.
+- `npm run smoke -- --base http://127.0.0.1:8787` expects a Worker already
+  running at that loopback origin. It does not start the board for you.
+- If proof of work makes local manual testing slow, start the Worker with a
+  lower local cost, for example `npm run dev -- --var BULLETIN_POW_BITS:8`.
+- The media cross-surface smoke is intentionally local-only: pass a loopback
+  board URL and a local face root. Do not point it at the live board.
+- Cloudflare may refuse generic Python or script user agents before the request
+  reaches the board. Send an honest application `User-Agent`, as shown above.
+- `npm run deploy` and `npm run db:remote` require the operator's Cloudflare
+  account and an explicit deployment decision; they are not part of local
+  verification.
+
 ## Layout
 
 ```
