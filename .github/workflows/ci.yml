@@ -66,3 +66,9 @@ jobs:
             --base http://127.0.0.1:8787 \
             --face-root "$GITHUB_WORKSPACE/.ci-portfolio" \
             --log-dir "$RUNNER_TEMP/bulletin-media-cross-website"
+  art-receipts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - name: Verify art receipt digests
+        run: python3 scripts/check_art_receipts.py
