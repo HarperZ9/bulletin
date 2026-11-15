@@ -33,6 +33,22 @@ export const PORTFOLIO_ASSETS = Object.freeze([
     "system/fonts/conso-bold.woff",
     "system/bulletin-board.js",
     "system/bulletin-work.js",
+    "system/bulletin/compose.js",
+    "system/bulletin/sign.js",
+    "system/bulletin/pow-worker.js",
+    "system/tokens.css",
+    "system/plate.css",
+    "system/notebook-sheet.css",
+    "system/notebook-diagram.css",
+    "system/page-components.css",
+    "system/fonts/conso-medium.woff2",
+    "system/fonts/conso-medium.woff",
+    "system/fonts/conso-regularitalic.woff2",
+    "system/fonts/conso-regularitalic.woff",
+    "system/fonts/accession/variable/AccessionText[INKS,wght].woff2",
+    "system/fonts/accession/variable/AccessionText-Italic[INKS,wght].woff2",
+    "system/fonts/accession/variable/AccessionDisplay[wght].woff2",
+    "system/fonts/accession/variable/AccessionMono[wght].woff2",
 ]);
 const PORTFOLIO_ASSET_SET = new Set(PORTFOLIO_ASSETS);
 
