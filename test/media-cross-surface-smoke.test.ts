@@ -213,6 +213,27 @@ test("portfolio face rejects malformed paths and symlink escapes", async (t) => 
     assert.equal(unlisted.status, 404);
 });
 
+test("the site header mark is listed, served as WebP, and required at start", async (t) => {
+    const mark = "brand/aperture-mark-96.webp";
+    assert.ok(PORTFOLIO_ASSETS.includes(mark), "the header mark the site loads today is in the list");
+    assert.deepEqual(PORTFOLIO_ASSETS.filter((asset) => asset.startsWith("brand/")), [mark]);
+
+    const root = await mkdtemp(join(tmpdir(), "bulletin-face-mark-"));
+    t.after(async () => rm(root, { recursive: true, force: true }));
+    await writePortfolioAssets(root);
+    const face = await startPortfolioFace(root, "http://127.0.0.1:8787");
+    const listed = face.receipt.assets.map((entry: { path: string }) => entry.path);
+    assert.deepEqual(listed, [...PORTFOLIO_ASSETS]);
+    const served = await fetch(`${face.origin}/${mark}`, { signal: AbortSignal.timeout(1000) });
+    assert.equal(served.status, 200);
+    assert.equal(served.headers.get("content-type"), "image/webp");
+    await served.arrayBuffer();
+    await face.close();
+
+    await rm(join(root, mark));
+    await assert.rejects(() => startPortfolioFace(root, "http://127.0.0.1:8787"));
+});
+
 test("portfolio receipt rejects symlink ancestors before serving", async (t) => {
     const root = await mkdtemp(join(tmpdir(), "bulletin-face-root-"));
     const outside = await mkdtemp(join(tmpdir(), "bulletin-face-outside-"));
