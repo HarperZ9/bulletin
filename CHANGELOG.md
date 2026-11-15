@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- The cross-surface smoke server lists the header mark the site loads today
+  (`brand/aperture-mark-96.webp`, served as `image/webp`) in place of an image
+  the site removed, and CI checks the smoke against a current site commit.
+
 ## 0.5.0
 
 - Added the signed bounty workflow ledger for public work offers, including

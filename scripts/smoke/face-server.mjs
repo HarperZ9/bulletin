@@ -12,7 +12,7 @@ const BACKEND_ASSET_SET = new Set(BACKEND_ASSETS);
 export const PORTFOLIO_ASSETS = Object.freeze([
     "bulletin.html",
     "favicon.svg",
-    "brand/zentropy-avatar.png",
+    "brand/aperture-mark-96.webp",
     "system/doc.css",
     "system/reading.css",
     "system/nav.css",
@@ -44,6 +44,7 @@ function contentType(filePath) {
         case ".json": return "application/json; charset=utf-8";
         case ".svg": return "image/svg+xml";
         case ".png": return "image/png";
+        case ".webp": return "image/webp";
         case ".woff2": return "font/woff2";
         case ".woff": return "font/woff";
         default: return "application/octet-stream";

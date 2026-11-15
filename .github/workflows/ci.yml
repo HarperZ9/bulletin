@@ -20,7 +20,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: HarperZ9/HarperZ9.github.io
-          ref: a0e195244d15dfe035b8b2f9904e2303be86c0b9
+          ref: 415d609feeaa5f8802cbc443044c30a76b5346cc
           path: .ci-portfolio
           persist-credentials: false
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
